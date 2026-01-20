@@ -15,8 +15,8 @@ from renderbase import Renderbase
 
 client = Renderbase(api_key="your_api_key")
 
-# Generate a PDF document
-result = client.documents.generate_pdf(
+# Generate a PDF document (async - returns job info immediately)
+job = client.documents.generate_pdf(
     template_id="tmpl_invoice",
     variables={
         "customerName": "John Doe",
@@ -25,8 +25,12 @@ result = client.documents.generate_pdf(
     },
 )
 
-print(f"Job ID: {result['jobId']}")
-print(f"Download URL: {result['downloadUrl']}")
+print(f"Job ID: {job['jobId']}")
+print(f"Status: {job['status']}")  # 'queued'
+
+# Wait for completion to get the download URL
+completed = client.documents.wait_for_completion(job["jobId"])
+print(f"Download URL: {completed['downloadUrl']}")
 ```
 
 ## Features
@@ -45,7 +49,8 @@ print(f"Download URL: {result['downloadUrl']}")
 ### Generate PDF Document
 
 ```python
-result = client.documents.generate_pdf(
+# Queue document generation
+job = client.documents.generate_pdf(
     template_id="tmpl_invoice",
     variables={
         "invoiceNumber": "INV-001",
@@ -58,13 +63,15 @@ result = client.documents.generate_pdf(
     },
 )
 
-print(f"Download URL: {result['downloadUrl']}")
+# Wait for completion and get download URL
+completed = client.documents.wait_for_completion(job["jobId"])
+print(f"Download URL: {completed['downloadUrl']}")
 ```
 
 ### Generate Excel Document
 
 ```python
-result = client.documents.generate_excel(
+job = client.documents.generate_excel(
     template_id="tmpl_report",
     variables={
         "reportMonth": "January 2026",
@@ -76,39 +83,27 @@ result = client.documents.generate_excel(
     },
 )
 
-print(f"Download URL: {result['downloadUrl']}")
-```
-
-### Generate Document in Specific Workspace
-
-```python
-# Generate document in a specific workspace
-result = client.documents.generate_pdf(
-    template_id="tmpl_invoice",
-    workspace_id="ws_abc123",  # Optional: specify target workspace
-    variables={
-        "invoiceNumber": "INV-001",
-        "customerName": "John Doe",
-    },
-)
+completed = client.documents.wait_for_completion(job["jobId"])
+print(f"Download URL: {completed['downloadUrl']}")
 ```
 
 ### Generate Batch Documents
 
 ```python
-result = client.documents.generate_batch(
+# Queue batch generation - each dict in documents list contains variables for one document
+batch = client.documents.generate_batch(
     template_id="tmpl_invoice",
     format="pdf",
     documents=[
-        {"variables": {"invoiceNumber": "INV-001", "customerName": "John Doe"}},
-        {"variables": {"invoiceNumber": "INV-002", "customerName": "Jane Smith"}},
-        {"variables": {"invoiceNumber": "INV-003", "customerName": "Bob Wilson"}},
+        {"invoiceNumber": "INV-001", "customerName": "John Doe"},
+        {"invoiceNumber": "INV-002", "customerName": "Jane Smith"},
+        {"invoiceNumber": "INV-003", "customerName": "Bob Wilson"},
     ],
-    workspace_id="ws_abc123",  # Optional: specify target workspace
 )
 
-print(f"Batch ID: {result['batchId']}")
-print(f"Total documents: {result['totalDocuments']}")
+print(f"Batch ID: {batch['batchId']}")
+print(f"Total jobs: {batch['totalJobs']}")
+print(f"Estimated wait: {batch['estimatedWaitSeconds']} seconds")
 ```
 
 ### Wait for Document Completion
@@ -223,12 +218,16 @@ import asyncio
 
 async def main():
     async with AsyncRenderbase(api_key="your_api_key") as client:
-        result = await client.documents.generate_pdf(
+        # Queue document generation
+        job = await client.documents.generate_pdf(
             template_id="tmpl_invoice",
             variables={"invoiceNumber": "INV-001"},
-            workspace_id="ws_abc123",  # Optional
         )
-        print(f"Download URL: {result['downloadUrl']}")
+        print(f"Job queued: {job['jobId']}")
+
+        # Wait for completion
+        completed = await client.documents.wait_for_completion(job["jobId"])
+        print(f"Download URL: {completed['downloadUrl']}")
 
 asyncio.run(main())
 ```
@@ -274,10 +273,12 @@ Use the client as a context manager to ensure proper cleanup:
 
 ```python
 with Renderbase(api_key="your_api_key") as client:
-    result = client.documents.generate_pdf(
+    job = client.documents.generate_pdf(
         template_id="tmpl_invoice",
         variables={"invoiceNumber": "INV-001"},
     )
+    completed = client.documents.wait_for_completion(job["jobId"])
+    print(f"Download URL: {completed['downloadUrl']}")
 ```
 
 ## API Reference

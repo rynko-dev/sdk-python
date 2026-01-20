@@ -22,7 +22,7 @@ class TemplatesResource:
             >>> print(f"Template: {template['name']}")
             >>> print(f"Variables: {template['variables']}")
         """
-        response = self._http.get(f"/api/v1/templates/{template_id}")
+        response = self._http.get(f"/api/templates/attachment/{template_id}")
         return response.get("data", response)
 
     def list(
@@ -52,7 +52,7 @@ class TemplatesResource:
             "limit": limit,
             "page": page,
         }
-        return self._http.get("/api/v1/templates", params)
+        return self._http.get("/api/templates/attachment", params)
 
     def list_pdf(self, *, limit: int = 20, page: int = 1) -> Dict[str, Any]:
         """List PDF templates."""
@@ -77,7 +77,7 @@ class AsyncTemplatesResource:
             >>> template = await client.templates.get("tmpl_abc123")
             >>> print(f"Template: {template['name']}")
         """
-        response = await self._http.get(f"/api/v1/templates/{template_id}")
+        response = await self._http.get(f"/api/templates/attachment/{template_id}")
         return response.get("data", response)
 
     async def list(
@@ -93,7 +93,7 @@ class AsyncTemplatesResource:
             "limit": limit,
             "page": page,
         }
-        return await self._http.get("/api/v1/templates", params)
+        return await self._http.get("/api/templates/attachment", params)
 
     async def list_pdf(self, *, limit: int = 20, page: int = 1) -> Dict[str, Any]:
         """List PDF templates (async)."""

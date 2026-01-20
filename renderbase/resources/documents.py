@@ -21,28 +21,33 @@ class DocumentsResource:
         format: str,
         *,
         variables: Optional[Dict[str, Any]] = None,
-        workspace_id: Optional[str] = None,
+        filename: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """
         Generate a document from a template.
 
+        This is an async operation - the document is queued for generation.
+        Use wait_for_completion() to poll until ready.
+
         Args:
             template_id: Template ID to use
-            format: Output format ('pdf' or 'excel')
+            format: Output format ('pdf', 'excel', or 'csv')
             variables: Template variables for content generation
-            workspace_id: Workspace ID to generate document in (optional)
+            filename: Custom filename (without extension)
             webhook_url: Webhook URL to receive completion notification
-            webhook_secret: Secret for webhook signature verification
             metadata: Custom metadata to pass through to webhook
+            use_draft: Use draft version instead of published version
+            use_credit: Force use of purchased credits instead of free quota
 
         Returns:
-            Document job with jobId and downloadUrl
+            Document job with jobId, status, statusUrl, estimatedWaitSeconds
 
         Example:
-            >>> result = client.documents.generate(
+            >>> job = client.documents.generate(
             ...     template_id="tmpl_invoice",
             ...     format="pdf",
             ...     variables={
@@ -51,8 +56,10 @@ class DocumentsResource:
             ...         "amount": 150.00,
             ...     }
             ... )
-            >>> print(f"Job ID: {result['jobId']}")
-            >>> print(f"Download URL: {result['downloadUrl']}")
+            >>> print(f"Job ID: {job['jobId']}")
+            >>> # Wait for completion to get download URL
+            >>> completed = client.documents.wait_for_completion(job["jobId"])
+            >>> print(f"Download URL: {completed['downloadUrl']}")
         """
         body: Dict[str, Any] = {
             "templateId": template_id,
@@ -61,14 +68,16 @@ class DocumentsResource:
 
         if variables:
             body["variables"] = variables
-        if workspace_id:
-            body["workspaceId"] = workspace_id
+        if filename:
+            body["filename"] = filename
         if webhook_url:
             body["webhookUrl"] = webhook_url
-        if webhook_secret:
-            body["webhookSecret"] = webhook_secret
         if metadata:
             body["metadata"] = metadata
+        if use_draft:
+            body["useDraft"] = use_draft
+        if use_credit:
+            body["useCredit"] = use_credit
 
         response = self._http.post("/api/v1/documents/generate", body)
         return response.get("data", response)
@@ -78,28 +87,31 @@ class DocumentsResource:
         template_id: str,
         *,
         variables: Optional[Dict[str, Any]] = None,
-        workspace_id: Optional[str] = None,
+        filename: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """
         Generate a PDF document from a template.
 
         Example:
-            >>> result = client.documents.generate_pdf(
+            >>> job = client.documents.generate_pdf(
             ...     template_id="tmpl_invoice",
             ...     variables={"invoiceNumber": "INV-001"}
             ... )
+            >>> completed = client.documents.wait_for_completion(job["jobId"])
         """
         return self.generate(
             template_id=template_id,
             format="pdf",
             variables=variables,
-            workspace_id=workspace_id,
+            filename=filename,
             webhook_url=webhook_url,
-            webhook_secret=webhook_secret,
             metadata=metadata,
+            use_draft=use_draft,
+            use_credit=use_credit,
         )
 
     def generate_excel(
@@ -107,28 +119,31 @@ class DocumentsResource:
         template_id: str,
         *,
         variables: Optional[Dict[str, Any]] = None,
-        workspace_id: Optional[str] = None,
+        filename: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """
         Generate an Excel document from a template.
 
         Example:
-            >>> result = client.documents.generate_excel(
+            >>> job = client.documents.generate_excel(
             ...     template_id="tmpl_report",
             ...     variables={"reportDate": "2025-01-15"}
             ... )
+            >>> completed = client.documents.wait_for_completion(job["jobId"])
         """
         return self.generate(
             template_id=template_id,
             format="excel",
             variables=variables,
-            workspace_id=workspace_id,
+            filename=filename,
             webhook_url=webhook_url,
-            webhook_secret=webhook_secret,
             metadata=metadata,
+            use_draft=use_draft,
+            use_credit=use_credit,
         )
 
     def generate_batch(
@@ -137,31 +152,39 @@ class DocumentsResource:
         format: str,
         documents: List[Dict[str, Any]],
         *,
-        workspace_id: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """
         Generate multiple documents in a batch.
 
+        This is an async operation - documents are queued for generation.
+
         Args:
             template_id: Template ID to use
-            format: Output format ('pdf' or 'excel')
-            documents: List of documents with variables and metadata
-            workspace_id: Workspace ID to generate documents in (optional)
+            format: Output format ('pdf', 'excel', or 'csv')
+            documents: List of variable sets (one dict per document)
             webhook_url: Webhook URL to receive batch completion notification
-            webhook_secret: Secret for webhook signature verification
+            metadata: Custom metadata for the batch
+            use_draft: Use draft version instead of published version
+            use_credit: Force use of purchased credits instead of free quota
+
+        Returns:
+            Batch info with batchId, status, totalJobs, statusUrl, estimatedWaitSeconds
 
         Example:
-            >>> result = client.documents.generate_batch(
+            >>> batch = client.documents.generate_batch(
             ...     template_id="tmpl_invoice",
             ...     format="pdf",
             ...     documents=[
-            ...         {"variables": {"invoiceNumber": "INV-001"}},
-            ...         {"variables": {"invoiceNumber": "INV-002"}},
+            ...         {"invoiceNumber": "INV-001", "customerName": "John"},
+            ...         {"invoiceNumber": "INV-002", "customerName": "Jane"},
             ...     ]
             ... )
-            >>> print(f"Batch ID: {result['batchId']}")
+            >>> print(f"Batch ID: {batch['batchId']}")
+            >>> print(f"Total jobs: {batch['totalJobs']}")
         """
         body: Dict[str, Any] = {
             "templateId": template_id,
@@ -169,12 +192,14 @@ class DocumentsResource:
             "documents": documents,
         }
 
-        if workspace_id:
-            body["workspaceId"] = workspace_id
         if webhook_url:
             body["webhookUrl"] = webhook_url
-        if webhook_secret:
-            body["webhookSecret"] = webhook_secret
+        if metadata:
+            body["metadata"] = metadata
+        if use_draft:
+            body["useDraft"] = use_draft
+        if use_credit:
+            body["useCredit"] = use_credit
 
         response = self._http.post("/api/v1/documents/generate/batch", body)
         return response.get("data", response)
@@ -285,10 +310,11 @@ class AsyncDocumentsResource:
         format: str,
         *,
         variables: Optional[Dict[str, Any]] = None,
-        workspace_id: Optional[str] = None,
+        filename: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """Generate a document from a template (async)."""
         body: Dict[str, Any] = {
@@ -298,14 +324,16 @@ class AsyncDocumentsResource:
 
         if variables:
             body["variables"] = variables
-        if workspace_id:
-            body["workspaceId"] = workspace_id
+        if filename:
+            body["filename"] = filename
         if webhook_url:
             body["webhookUrl"] = webhook_url
-        if webhook_secret:
-            body["webhookSecret"] = webhook_secret
         if metadata:
             body["metadata"] = metadata
+        if use_draft:
+            body["useDraft"] = use_draft
+        if use_credit:
+            body["useCredit"] = use_credit
 
         response = await self._http.post("/api/v1/documents/generate", body)
         return response.get("data", response)
@@ -315,20 +343,22 @@ class AsyncDocumentsResource:
         template_id: str,
         *,
         variables: Optional[Dict[str, Any]] = None,
-        workspace_id: Optional[str] = None,
+        filename: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """Generate a PDF document from a template (async)."""
         return await self.generate(
             template_id=template_id,
             format="pdf",
             variables=variables,
-            workspace_id=workspace_id,
+            filename=filename,
             webhook_url=webhook_url,
-            webhook_secret=webhook_secret,
             metadata=metadata,
+            use_draft=use_draft,
+            use_credit=use_credit,
         )
 
     async def generate_excel(
@@ -336,20 +366,22 @@ class AsyncDocumentsResource:
         template_id: str,
         *,
         variables: Optional[Dict[str, Any]] = None,
-        workspace_id: Optional[str] = None,
+        filename: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
         metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """Generate an Excel document from a template (async)."""
         return await self.generate(
             template_id=template_id,
             format="excel",
             variables=variables,
-            workspace_id=workspace_id,
+            filename=filename,
             webhook_url=webhook_url,
-            webhook_secret=webhook_secret,
             metadata=metadata,
+            use_draft=use_draft,
+            use_credit=use_credit,
         )
 
     async def generate_batch(
@@ -358,9 +390,10 @@ class AsyncDocumentsResource:
         format: str,
         documents: List[Dict[str, Any]],
         *,
-        workspace_id: Optional[str] = None,
         webhook_url: Optional[str] = None,
-        webhook_secret: Optional[str] = None,
+        metadata: Optional[Dict[str, Any]] = None,
+        use_draft: bool = False,
+        use_credit: bool = False,
     ) -> Dict[str, Any]:
         """Generate multiple documents in a batch (async)."""
         body: Dict[str, Any] = {
@@ -369,12 +402,14 @@ class AsyncDocumentsResource:
             "documents": documents,
         }
 
-        if workspace_id:
-            body["workspaceId"] = workspace_id
         if webhook_url:
             body["webhookUrl"] = webhook_url
-        if webhook_secret:
-            body["webhookSecret"] = webhook_secret
+        if metadata:
+            body["metadata"] = metadata
+        if use_draft:
+            body["useDraft"] = use_draft
+        if use_credit:
+            body["useCredit"] = use_credit
 
         response = await self._http.post("/api/v1/documents/generate/batch", body)
         return response.get("data", response)
