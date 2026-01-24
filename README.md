@@ -1,11 +1,50 @@
 # renderbase
 
-Official Python SDK for Renderbase - the document generation platform with unified template design for PDF and Excel documents.
+Official Python SDK for [Renderbase](https://renderbase.dev) - the document generation platform with unified template design for PDF and Excel documents.
+
+[![PyPI version](https://img.shields.io/pypi/v/renderbase.svg)](https://pypi.org/project/renderbase/)
+[![Python versions](https://img.shields.io/pypi/pyversions/renderbase.svg)](https://pypi.org/project/renderbase/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Features](#features)
+- [Authentication](#authentication)
+- [Document Generation](#document-generation)
+  - [Generate PDF](#generate-pdf)
+  - [Generate Excel](#generate-excel)
+  - [Generate with Options](#generate-with-options)
+  - [Batch Generation](#batch-generation)
+  - [Wait for Completion](#wait-for-completion)
+- [Document Jobs](#document-jobs)
+  - [Get Job Status](#get-job-status)
+  - [List Jobs](#list-jobs)
+- [Templates](#templates)
+  - [List Templates](#list-templates)
+  - [Get Template Details](#get-template-details)
+- [Webhooks](#webhooks)
+  - [List Webhooks](#list-webhooks)
+  - [Verify Webhook Signatures](#verify-webhook-signatures)
+- [Async Client](#async-client)
+- [Configuration](#configuration)
+- [Error Handling](#error-handling)
+- [Context Manager](#context-manager)
+- [API Reference](#api-reference)
+- [Requirements](#requirements)
+- [Support](#support)
 
 ## Installation
 
 ```bash
 pip install renderbase
+```
+
+Or with optional async support:
+
+```bash
+pip install renderbase[async]
 ```
 
 ## Quick Start
@@ -36,181 +75,473 @@ print(f"Download URL: {completed['downloadUrl']}")
 ## Features
 
 - **Sync and async clients** - Choose based on your application needs
-- **Type hints** - Full type annotation support
+- **Full type hints** - Complete type annotation support for IDE autocompletion
 - **PDF generation** - Generate PDF documents from templates
-- **Excel generation** - Generate Excel documents from templates
-- **Batch generation** - Generate multiple documents at once
+- **Excel generation** - Generate Excel spreadsheets from templates
+- **Batch generation** - Generate multiple documents in a single request
 - **Workspace support** - Generate documents in specific workspaces
-- **Webhook verification** - Secure signature verification
-- **Polling utility** - Wait for document completion
+- **Webhook verification** - Secure HMAC signature verification for incoming webhooks
+- **Polling utility** - Built-in `wait_for_completion()` method with configurable timeout
+- **Context manager support** - Automatic resource cleanup
 
-## Usage Examples
+## Authentication
 
-### Generate PDF Document
+### Get an API Key
+
+1. Log in to your [Renderbase Dashboard](https://app.renderbase.dev)
+2. Navigate to **Settings** → **API Keys**
+3. Click **Create API Key**
+4. Copy the key and store it securely (it won't be shown again)
+
+### Initialize the Client
 
 ```python
-# Queue document generation
+import os
+from renderbase import Renderbase
+
+# Using environment variable (recommended)
+client = Renderbase(api_key=os.environ["RENDERBASE_API_KEY"])
+
+# Verify authentication
+user = client.me()
+print(f"Authenticated as: {user['email']}")
+print(f"Team: {user.get('teamName')}")
+```
+
+### Verify API Key
+
+```python
+# Check if API key is valid
+is_valid = client.verify_api_key()
+print(f"API Key valid: {is_valid}")
+```
+
+## Document Generation
+
+Document generation in Renderbase is **asynchronous**. When you call a generate method, the job is queued for processing and you receive a job ID immediately. Use `wait_for_completion()` to poll until the document is ready.
+
+### Generate PDF
+
+```python
+# Queue PDF generation
 job = client.documents.generate_pdf(
     template_id="tmpl_invoice",
     variables={
         "invoiceNumber": "INV-001",
         "customerName": "John Doe",
+        "customerEmail": "john@example.com",
         "items": [
             {"description": "Product A", "quantity": 2, "price": 50.00},
             {"description": "Product B", "quantity": 1, "price": 50.00},
         ],
-        "total": 150.00,
+        "subtotal": 150.00,
+        "tax": 15.00,
+        "total": 165.00,
     },
 )
 
-# Wait for completion and get download URL
+print(f"Job queued: {job['jobId']}")
+print(f"Status: {job['status']}")  # 'queued'
+
+# Wait for completion
 completed = client.documents.wait_for_completion(job["jobId"])
 print(f"Download URL: {completed['downloadUrl']}")
 ```
 
-### Generate Excel Document
+### Generate Excel
 
 ```python
 job = client.documents.generate_excel(
-    template_id="tmpl_report",
+    template_id="tmpl_sales_report",
     variables={
-        "reportMonth": "January 2026",
+        "reportTitle": "Q1 2026 Sales Report",
+        "reportDate": "2026-03-31",
         "salesData": [
-            {"region": "North", "sales": 10000},
-            {"region": "South", "sales": 15000},
-            {"region": "East", "sales": 12000},
+            {"region": "North", "q1": 125000, "q2": 0, "q3": 0, "q4": 0},
+            {"region": "South", "q1": 98000, "q2": 0, "q3": 0, "q4": 0},
+            {"region": "East", "q1": 145000, "q2": 0, "q3": 0, "q4": 0},
+            {"region": "West", "q1": 112000, "q2": 0, "q3": 0, "q4": 0},
         ],
+        "totalSales": 480000,
     },
 )
 
 completed = client.documents.wait_for_completion(job["jobId"])
-print(f"Download URL: {completed['downloadUrl']}")
+print(f"Excel file ready: {completed['downloadUrl']}")
 ```
 
-### Generate Batch Documents
+### Generate with Options
+
+The `generate()` method supports all document formats and advanced options:
 
 ```python
-# Queue batch generation - each dict in documents list contains variables for one document
+job = client.documents.generate(
+    # Required
+    template_id="tmpl_contract",
+    format="pdf",  # 'pdf' | 'excel' | 'csv'
+
+    # Template variables
+    variables={
+        "contractNumber": "CTR-2026-001",
+        "clientName": "Acme Corporation",
+        "startDate": "2026-02-01",
+        "endDate": "2027-01-31",
+    },
+
+    # Optional settings
+    filename="contract-acme-2026",  # Custom filename (without extension)
+    workspace_id="ws_abc123",       # Generate in specific workspace
+    webhook_url="https://your-app.com/webhooks/document-ready",  # Webhook notification
+    metadata={                       # Custom metadata (passed to webhook)
+        "orderId": "ORD-12345",
+        "userId": "user_abc",
+    },
+    use_draft=False,                 # Use draft template version (for testing)
+    use_credit=False,                # Force use of purchased credits
+)
+```
+
+### Batch Generation
+
+Generate multiple documents from a single template:
+
+```python
+# Each dict in the documents list contains variables for one document
 batch = client.documents.generate_batch(
     template_id="tmpl_invoice",
     format="pdf",
     documents=[
-        {"invoiceNumber": "INV-001", "customerName": "John Doe"},
-        {"invoiceNumber": "INV-002", "customerName": "Jane Smith"},
-        {"invoiceNumber": "INV-003", "customerName": "Bob Wilson"},
+        {
+            "invoiceNumber": "INV-001",
+            "customerName": "John Doe",
+            "total": 150.00,
+        },
+        {
+            "invoiceNumber": "INV-002",
+            "customerName": "Jane Smith",
+            "total": 275.50,
+        },
+        {
+            "invoiceNumber": "INV-003",
+            "customerName": "Bob Wilson",
+            "total": 89.99,
+        },
     ],
+    webhook_url="https://your-app.com/webhooks/batch-complete",
 )
 
 print(f"Batch ID: {batch['batchId']}")
-print(f"Total jobs: {batch['totalJobs']}")
+print(f"Total jobs: {batch['totalJobs']}")  # 3
+print(f"Status: {batch['status']}")  # 'queued'
 print(f"Estimated wait: {batch['estimatedWaitSeconds']} seconds")
 ```
 
-### Wait for Document Completion
+### Wait for Completion
+
+The `wait_for_completion()` method polls the job status until it completes or fails:
 
 ```python
-# Generate and wait for completion
-job = client.documents.generate_pdf(
-    template_id="tmpl_invoice",
-    variables={"invoiceNumber": "INV-001"},
-)
+# Default settings (1 second interval, 30 second timeout)
+completed = client.documents.wait_for_completion(job["jobId"])
 
+# Custom polling settings
 completed = client.documents.wait_for_completion(
     job["jobId"],
-    poll_interval=1.0,  # Check every 1 second
-    timeout=30.0,       # Wait up to 30 seconds
+    poll_interval=2.0,   # Check every 2 seconds
+    timeout=60.0,        # Wait up to 60 seconds
 )
 
-print(f"Download URL: {completed['downloadUrl']}")
+# Check result
+if completed["status"] == "completed":
+    print(f"Download URL: {completed['downloadUrl']}")
+    print(f"File size: {completed['fileSize']} bytes")
+    print(f"Expires at: {completed['downloadUrlExpiresAt']}")
+elif completed["status"] == "failed":
+    print(f"Generation failed: {completed['errorMessage']}")
+    print(f"Error code: {completed['errorCode']}")
 ```
 
-### List Document Jobs
+## Document Jobs
+
+### Get Job Status
 
 ```python
-# List recent jobs
-result = client.documents.list_jobs(limit=20)
-
-# Filter by status
-result = client.documents.list_jobs(status="completed", format="pdf")
-
-# Filter by workspace
-result = client.documents.list_jobs(
-    workspace_id="ws_abc123",
-    date_from="2026-01-01",
-)
-
-# Get specific job
 job = client.documents.get_job("job_abc123")
+
+print(f"Status: {job['status']}")
+# Possible values: 'queued' | 'processing' | 'completed' | 'failed'
+
+print(f"Template: {job.get('templateName')}")
+print(f"Format: {job['format']}")
+print(f"Created: {job['createdAt']}")
+
+if job["status"] == "completed":
+    print(f"Download URL: {job['downloadUrl']}")
+    print(f"File size: {job['fileSize']}")
+    print(f"URL expires: {job['downloadUrlExpiresAt']}")
+
+if job["status"] == "failed":
+    print(f"Error: {job['errorMessage']}")
+    print(f"Error code: {job['errorCode']}")
 ```
 
-### Work with Templates
+### List Jobs
+
+```python
+# List recent jobs with pagination
+result = client.documents.list_jobs(limit=20, page=1)
+jobs = result["data"]
+meta = result["meta"]
+
+print(f"Total jobs: {meta['total']}")
+print(f"Pages: {meta['totalPages']}")
+
+for job in jobs:
+    print(f"{job['jobId']}: {job['status']} - {job.get('templateName')}")
+
+# Filter by status
+result = client.documents.list_jobs(status="completed")
+
+# Filter by format
+result = client.documents.list_jobs(format="pdf")
+
+# Filter by template
+result = client.documents.list_jobs(template_id="tmpl_invoice")
+
+# Filter by workspace
+result = client.documents.list_jobs(workspace_id="ws_abc123")
+
+# Filter by date range
+result = client.documents.list_jobs(
+    date_from="2026-01-01",
+    date_to="2026-01-31",
+)
+
+# Combine filters
+result = client.documents.list_jobs(
+    status="completed",
+    format="pdf",
+    template_id="tmpl_invoice",
+    limit=50,
+)
+```
+
+## Templates
+
+### List Templates
 
 ```python
 # List all templates
-templates = client.templates.list()
+result = client.templates.list()
+templates = result["data"]
+meta = result["meta"]
 
-# List by type
-pdf_templates = client.templates.list(type="pdf")
-excel_templates = client.templates.list(type="excel")
+print(f"Total templates: {meta['total']}")
 
-# Get template details
-template = client.templates.get("tmpl_abc123")
-print(f"Variables: {template['variables']}")
+for template in templates:
+    print(f"{template['id']}: {template['name']} ({template['type']})")
+
+# Paginated list
+result = client.templates.list(page=2, limit=10)
+
+# Search by name
+result = client.templates.list(search="invoice")
+
+# List PDF templates only
+result = client.templates.list_pdf()
+
+# List Excel templates only
+result = client.templates.list_excel()
 ```
 
-### Manage Webhooks
+### Get Template Details
 
 ```python
-# Create a webhook subscription
-webhook = client.webhooks.create(
-    url="https://your-app.com/webhooks/renderbase",
-    events=["document.completed", "document.failed", "batch.completed"],
-    name="My Document Webhook",
-)
+# Get template by ID (supports UUID, shortId, or slug)
+template = client.templates.get("tmpl_invoice")
 
-# Save the secret for verification!
-print(f"Webhook secret: {webhook['secret']}")
+print(f"Template: {template['name']}")
+print(f"Type: {template['type']}")  # 'pdf' | 'excel'
+print(f"Description: {template.get('description')}")
+print(f"Created: {template['createdAt']}")
+print(f"Updated: {template['updatedAt']}")
 
-# List webhooks
-webhooks = client.webhooks.list()
+# View template variables
+if "variables" in template and template["variables"]:
+    print("\nVariables:")
+    for variable in template["variables"]:
+        print(f"  {variable['name']} ({variable['type']})")
+        print(f"    Required: {variable.get('required', False)}")
+        if "defaultValue" in variable:
+            print(f"    Default: {variable['defaultValue']}")
+```
 
-# Delete a webhook
-client.webhooks.delete("wh_abc123")
+## Webhooks
+
+Webhook subscriptions are managed through the [Renderbase Dashboard](https://app.renderbase.dev). The SDK provides read-only access to view webhooks and utilities for signature verification.
+
+### List Webhooks
+
+```python
+result = client.webhooks.list()
+webhooks = result.get("data", [])
+
+for webhook in webhooks:
+    print(f"{webhook['id']}: {webhook['url']}")
+    print(f"  Events: {', '.join(webhook['events'])}")
+    print(f"  Active: {webhook['isActive']}")
+    print(f"  Created: {webhook['createdAt']}")
+```
+
+### Get Webhook Details
+
+```python
+webhook = client.webhooks.get("wh_abc123")
+
+print(f"URL: {webhook['url']}")
+print(f"Events: {webhook['events']}")
+print(f"Active: {webhook['isActive']}")
+print(f"Description: {webhook.get('description')}")
 ```
 
 ### Verify Webhook Signatures
 
+When receiving webhooks, always verify the signature to ensure the request came from Renderbase:
+
 ```python
+import os
 from renderbase import verify_webhook_signature, WebhookSignatureError
 
 # Flask example
 @app.route('/webhooks/renderbase', methods=['POST'])
 def handle_webhook():
     signature = request.headers.get('X-Renderbase-Signature')
+    timestamp = request.headers.get('X-Renderbase-Timestamp')
 
     try:
         event = verify_webhook_signature(
             payload=request.data.decode('utf-8'),
             signature=signature,
+            timestamp=timestamp,  # Optional but recommended for replay protection
             secret=os.environ['WEBHOOK_SECRET'],
         )
 
         # Process the verified event
-        if event['type'] == 'document.completed':
-            print(f"Document ready: {event['data']['downloadUrl']}")
+        print(f"Event type: {event['type']}")
+        print(f"Event ID: {event['id']}")
+        print(f"Timestamp: {event['timestamp']}")
+
+        if event['type'] == 'document.generated':
+            job_id = event['data']['jobId']
+            download_url = event['data']['downloadUrl']
+            print(f"Document {job_id} ready: {download_url}")
+            # Download or process the document
+
         elif event['type'] == 'document.failed':
-            print(f"Document failed: {event['data']['error']}")
-        elif event['type'] == 'batch.completed':
-            print(f"Batch completed: {event['data']['batchId']}")
+            job_id = event['data']['jobId']
+            error = event['data']['error']
+            print(f"Document {job_id} failed: {error}")
+            # Handle failure (retry, notify user, etc.)
+
+        elif event['type'] == 'document.downloaded':
+            job_id = event['data']['jobId']
+            print(f"Document {job_id} was downloaded")
 
         return 'OK', 200
+
     except WebhookSignatureError as e:
-        return f'Invalid signature: {e}', 400
+        print(f"Invalid webhook signature: {e}")
+        return 'Invalid signature', 401
 ```
+
+#### Django Example
+
+```python
+import os
+from django.http import HttpResponse
+from django.views.decorators.csrf import csrf_exempt
+from renderbase import verify_webhook_signature, WebhookSignatureError
+
+@csrf_exempt
+def webhook_handler(request):
+    signature = request.headers.get('X-Renderbase-Signature')
+    timestamp = request.headers.get('X-Renderbase-Timestamp')
+
+    try:
+        event = verify_webhook_signature(
+            payload=request.body.decode('utf-8'),
+            signature=signature,
+            timestamp=timestamp,
+            secret=os.environ['WEBHOOK_SECRET'],
+        )
+
+        # Process the event
+        if event['type'] == 'document.generated':
+            # Handle document completion
+            pass
+
+        return HttpResponse('OK', status=200)
+
+    except WebhookSignatureError:
+        return HttpResponse('Invalid signature', status=401)
+```
+
+#### FastAPI Example
+
+```python
+import os
+from fastapi import FastAPI, Request, HTTPException
+from renderbase import verify_webhook_signature, WebhookSignatureError
+
+app = FastAPI()
+
+@app.post("/webhooks/renderbase")
+async def webhook_handler(request: Request):
+    signature = request.headers.get('X-Renderbase-Signature')
+    timestamp = request.headers.get('X-Renderbase-Timestamp')
+    body = await request.body()
+
+    try:
+        event = verify_webhook_signature(
+            payload=body.decode('utf-8'),
+            signature=signature,
+            timestamp=timestamp,
+            secret=os.environ['WEBHOOK_SECRET'],
+        )
+
+        # Process the event
+        if event['type'] == 'document.generated':
+            # Handle document completion
+            pass
+
+        return {"status": "ok"}
+
+    except WebhookSignatureError:
+        raise HTTPException(status_code=401, detail="Invalid signature")
+```
+
+#### Webhook Event Types
+
+| Event | Description | Payload |
+|-------|-------------|---------|
+| `document.generated` | Document successfully generated | `jobId`, `templateId`, `format`, `downloadUrl`, `fileSize` |
+| `document.failed` | Document generation failed | `jobId`, `templateId`, `error`, `errorCode` |
+| `document.downloaded` | Document was downloaded | `jobId`, `downloadedAt` |
+
+#### Webhook Headers
+
+Renderbase sends these headers with each webhook request:
+
+| Header | Description |
+|--------|-------------|
+| `X-Renderbase-Signature` | HMAC-SHA256 signature (format: `v1=<hex>`) |
+| `X-Renderbase-Timestamp` | Unix timestamp when the webhook was sent |
+| `X-Renderbase-Event-Id` | Unique event identifier |
+| `X-Renderbase-Event-Type` | Event type (e.g., `document.generated`) |
 
 ## Async Client
 
-For async applications, use `AsyncRenderbase`:
+For async applications (FastAPI, aiohttp, etc.), use `AsyncRenderbase`:
 
 ```python
 from renderbase import AsyncRenderbase
@@ -218,6 +549,10 @@ import asyncio
 
 async def main():
     async with AsyncRenderbase(api_key="your_api_key") as client:
+        # Get user info
+        user = await client.me()
+        print(f"Authenticated as: {user['email']}")
+
         # Queue document generation
         job = await client.documents.generate_pdf(
             template_id="tmpl_invoice",
@@ -229,7 +564,39 @@ async def main():
         completed = await client.documents.wait_for_completion(job["jobId"])
         print(f"Download URL: {completed['downloadUrl']}")
 
+        # List templates
+        result = await client.templates.list()
+        for template in result["data"]:
+            print(f"Template: {template['name']}")
+
 asyncio.run(main())
+```
+
+### Async with FastAPI
+
+```python
+from fastapi import FastAPI, Depends
+from renderbase import AsyncRenderbase
+import os
+
+app = FastAPI()
+
+async def get_renderbase():
+    async with AsyncRenderbase(api_key=os.environ["RENDERBASE_API_KEY"]) as client:
+        yield client
+
+@app.post("/generate-invoice")
+async def generate_invoice(
+    invoice_data: dict,
+    client: AsyncRenderbase = Depends(get_renderbase)
+):
+    job = await client.documents.generate_pdf(
+        template_id="tmpl_invoice",
+        variables=invoice_data,
+    )
+
+    completed = await client.documents.wait_for_completion(job["jobId"])
+    return {"download_url": completed["downloadUrl"]}
 ```
 
 ## Configuration
@@ -245,9 +612,29 @@ client = Renderbase(
     # Optional: Request timeout in seconds (default: 30)
     timeout=30.0,
 
-    # Optional: Custom headers
+    # Optional: Custom headers for all requests
     headers={"X-Custom-Header": "value"},
 )
+```
+
+### Environment Variables
+
+We recommend using environment variables for configuration:
+
+```bash
+# .env
+RENDERBASE_API_KEY=your_api_key_here
+WEBHOOK_SECRET=your_webhook_secret_here
+```
+
+```python
+import os
+from dotenv import load_dotenv
+from renderbase import Renderbase
+
+load_dotenv()
+
+client = Renderbase(api_key=os.environ["RENDERBASE_API_KEY"])
 ```
 
 ## Error Handling
@@ -258,20 +645,47 @@ from renderbase import Renderbase, RenderbaseError
 client = Renderbase(api_key="your_api_key")
 
 try:
-    result = client.documents.generate_pdf(
+    job = client.documents.generate_pdf(
         template_id="invalid_template",
+        variables={},
     )
 except RenderbaseError as e:
     print(f"API Error: {e.message}")
-    print(f"Code: {e.code}")
-    print(f"Status: {e.status_code}")
+    print(f"Error Code: {e.code}")
+    print(f"Status Code: {e.status_code}")
+
+    # Handle specific error codes
+    if e.code == "ERR_TMPL_001":
+        print("Template not found")
+    elif e.code == "ERR_TMPL_003":
+        print("Template validation failed")
+    elif e.code == "ERR_QUOTA_001":
+        print("Document quota exceeded - upgrade your plan")
+    elif e.code == "ERR_AUTH_001":
+        print("Invalid API key")
+    elif e.code == "ERR_AUTH_004":
+        print("API key expired or revoked")
 ```
+
+### Common Error Codes
+
+| Code | Description |
+|------|-------------|
+| `ERR_AUTH_001` | Invalid credentials / API key |
+| `ERR_AUTH_004` | Token expired or revoked |
+| `ERR_TMPL_001` | Template not found |
+| `ERR_TMPL_003` | Template validation failed |
+| `ERR_DOC_001` | Document job not found |
+| `ERR_DOC_004` | Document generation failed |
+| `ERR_QUOTA_001` | Document quota exceeded |
+| `ERR_QUOTA_002` | Rate limit exceeded |
 
 ## Context Manager
 
-Use the client as a context manager to ensure proper cleanup:
+Use the client as a context manager to ensure proper resource cleanup:
 
 ```python
+# Synchronous
 with Renderbase(api_key="your_api_key") as client:
     job = client.documents.generate_pdf(
         template_id="tmpl_invoice",
@@ -279,41 +693,59 @@ with Renderbase(api_key="your_api_key") as client:
     )
     completed = client.documents.wait_for_completion(job["jobId"])
     print(f"Download URL: {completed['downloadUrl']}")
+
+# Asynchronous
+async with AsyncRenderbase(api_key="your_api_key") as client:
+    job = await client.documents.generate_pdf(
+        template_id="tmpl_invoice",
+        variables={"invoiceNumber": "INV-001"},
+    )
+    completed = await client.documents.wait_for_completion(job["jobId"])
+    print(f"Download URL: {completed['downloadUrl']}")
 ```
 
 ## API Reference
 
 ### Client Methods
 
-- `client.me()` - Get current authenticated user
-- `client.verify_api_key()` - Verify API key is valid
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `me()` | `Dict[str, Any]` | Get current authenticated user |
+| `verify_api_key()` | `bool` | Verify API key is valid |
 
 ### Documents Resource
 
-- `client.documents.generate(...)` - Generate a document (PDF or Excel)
-- `client.documents.generate_pdf(...)` - Generate a PDF document
-- `client.documents.generate_excel(...)` - Generate an Excel document
-- `client.documents.generate_batch(...)` - Generate batch documents
-- `client.documents.get_job(job_id)` - Get document job by ID
-- `client.documents.list_jobs(...)` - List/search document jobs
-- `client.documents.wait_for_completion(job_id, ...)` - Wait for job completion
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `generate(...)` | `Dict[str, Any]` | Generate a document (PDF, Excel, or CSV) |
+| `generate_pdf(...)` | `Dict[str, Any]` | Generate a PDF document |
+| `generate_excel(...)` | `Dict[str, Any]` | Generate an Excel document |
+| `generate_batch(...)` | `Dict[str, Any]` | Generate multiple documents |
+| `get_job(job_id)` | `Dict[str, Any]` | Get document job by ID |
+| `list_jobs(...)` | `Dict[str, Any]` | List/search document jobs |
+| `wait_for_completion(job_id, ...)` | `Dict[str, Any]` | Poll until job completes or fails |
 
 ### Templates Resource
 
-- `client.templates.get(template_id)` - Get template by ID
-- `client.templates.list(...)` - List templates
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(template_id)` | `Dict[str, Any]` | Get template by ID (UUID, shortId, or slug) |
+| `list(...)` | `Dict[str, Any]` | List all templates |
+| `list_pdf(...)` | `Dict[str, Any]` | List PDF templates only |
+| `list_excel(...)` | `Dict[str, Any]` | List Excel templates only |
 
 ### Webhooks Resource
 
-- `client.webhooks.create(...)` - Create webhook subscription
-- `client.webhooks.get(webhook_id)` - Get webhook by ID
-- `client.webhooks.list()` - List webhooks
-- `client.webhooks.update(...)` - Update webhook
-- `client.webhooks.delete(webhook_id)` - Delete webhook
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `get(webhook_id)` | `Dict[str, Any]` | Get webhook subscription by ID |
+| `list()` | `Dict[str, Any]` | List all webhook subscriptions |
 
 ### Utilities
 
-- `verify_webhook_signature(...)` - Verify webhook signature
+| Function | Returns | Description |
+|----------|---------|-------------|
+| `verify_webhook_signature(...)` | `Dict[str, Any]` | Verify signature and parse webhook event |
 
 ## Requirements
 
@@ -326,6 +758,7 @@ MIT
 
 ## Support
 
-- Documentation: https://docs.renderbase.dev/sdk/python
-- API Reference: https://docs.renderbase.dev/api
-- Support: support@renderbase.dev
+- **Documentation**: https://docs.renderbase.dev/sdk/python
+- **API Reference**: https://docs.renderbase.dev/api
+- **GitHub Issues**: https://github.com/renderbase/sdk-python/issues
+- **Email**: support@renderbase.dev
