@@ -220,11 +220,8 @@ class DocumentsResource:
         self,
         *,
         status: Optional[str] = None,
-        format: Optional[str] = None,
         template_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
         limit: int = 20,
         page: int = 1,
     ) -> Dict[str, Any]:
@@ -237,22 +234,34 @@ class DocumentsResource:
         Example:
             >>> result = client.documents.list_jobs(
             ...     status="completed",
-            ...     format="pdf",
             ...     limit=10
             ... )
             >>> print(f"Found {result['meta']['total']} jobs")
         """
+        offset = (page - 1) * limit
         params = {
             "status": status,
-            "format": format,
             "templateId": template_id,
             "workspaceId": workspace_id,
-            "dateFrom": date_from,
-            "dateTo": date_to,
             "limit": limit,
-            "page": page,
+            "offset": offset,
         }
-        return self._http.get("/api/v1/documents/jobs", params)
+        # Backend returns { jobs: [], total: number }
+        response = self._http.get("/api/v1/documents/jobs", params)
+
+        # Normalize to { data: [], meta: {} } format
+        jobs = response.get("jobs", response.get("data", []))
+        total = response.get("total", len(jobs))
+
+        return {
+            "data": jobs,
+            "meta": {
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "totalPages": (total + limit - 1) // limit if limit > 0 else 1,
+            },
+        }
 
     def wait_for_completion(
         self,
@@ -423,26 +432,36 @@ class AsyncDocumentsResource:
         self,
         *,
         status: Optional[str] = None,
-        format: Optional[str] = None,
         template_id: Optional[str] = None,
         workspace_id: Optional[str] = None,
-        date_from: Optional[str] = None,
-        date_to: Optional[str] = None,
         limit: int = 20,
         page: int = 1,
     ) -> Dict[str, Any]:
         """List document jobs with optional filters (async)."""
+        offset = (page - 1) * limit
         params = {
             "status": status,
-            "format": format,
             "templateId": template_id,
             "workspaceId": workspace_id,
-            "dateFrom": date_from,
-            "dateTo": date_to,
             "limit": limit,
-            "page": page,
+            "offset": offset,
         }
-        return await self._http.get("/api/v1/documents/jobs", params)
+        # Backend returns { jobs: [], total: number }
+        response = await self._http.get("/api/v1/documents/jobs", params)
+
+        # Normalize to { data: [], meta: {} } format
+        jobs = response.get("jobs", response.get("data", []))
+        total = response.get("total", len(jobs))
+
+        return {
+            "data": jobs,
+            "meta": {
+                "total": total,
+                "page": page,
+                "limit": limit,
+                "totalPages": (total + limit - 1) // limit if limit > 0 else 1,
+            },
+        }
 
     async def wait_for_completion(
         self,

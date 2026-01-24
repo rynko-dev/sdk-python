@@ -22,45 +22,57 @@ class TemplatesResource:
             >>> print(f"Template: {template['name']}")
             >>> print(f"Variables: {template['variables']}")
         """
-        response = self._http.get(f"/api/templates/attachment/{template_id}")
-        return response.get("data", response)
+        # Backend returns template directly
+        return self._http.get(f"/api/templates/{template_id}")
 
     def list(
         self,
         *,
-        type: Optional[str] = None,
         limit: int = 20,
         page: int = 1,
+        search: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         List templates with optional filters.
 
         Args:
-            type: Filter by type (pdf, excel)
             limit: Results per page
             page: Page number
+            search: Search by template name
 
         Returns:
-            Dict with 'data' and 'meta'
+            Dict with 'data' and pagination info
 
         Example:
-            >>> result = client.templates.list(type="pdf")
+            >>> result = client.templates.list()
             >>> print(f"Found {len(result['data'])} templates")
         """
         params = {
-            "type": type,
             "limit": limit,
             "page": page,
+            "search": search,
         }
         return self._http.get("/api/templates/attachment", params)
 
     def list_pdf(self, *, limit: int = 20, page: int = 1) -> Dict[str, Any]:
-        """List PDF templates."""
-        return self.list(type="pdf", limit=limit, page=page)
+        """List PDF templates (client-side filter by outputFormats)."""
+        result = self.list(limit=limit, page=page)
+        if "data" in result:
+            result["data"] = [
+                t for t in result["data"]
+                if "pdf" in (t.get("outputFormats") or [])
+            ]
+        return result
 
     def list_excel(self, *, limit: int = 20, page: int = 1) -> Dict[str, Any]:
-        """List Excel templates."""
-        return self.list(type="excel", limit=limit, page=page)
+        """List Excel templates (client-side filter by outputFormats)."""
+        result = self.list(limit=limit, page=page)
+        if "data" in result:
+            result["data"] = [
+                t for t in result["data"]
+                if "xlsx" in (t.get("outputFormats") or []) or "excel" in (t.get("outputFormats") or [])
+            ]
+        return result
 
 
 class AsyncTemplatesResource:
@@ -77,28 +89,40 @@ class AsyncTemplatesResource:
             >>> template = await client.templates.get("tmpl_abc123")
             >>> print(f"Template: {template['name']}")
         """
-        response = await self._http.get(f"/api/templates/attachment/{template_id}")
-        return response.get("data", response)
+        # Backend returns template directly
+        return await self._http.get(f"/api/templates/{template_id}")
 
     async def list(
         self,
         *,
-        type: Optional[str] = None,
         limit: int = 20,
         page: int = 1,
+        search: Optional[str] = None,
     ) -> Dict[str, Any]:
         """List templates (async)."""
         params = {
-            "type": type,
             "limit": limit,
             "page": page,
+            "search": search,
         }
         return await self._http.get("/api/templates/attachment", params)
 
     async def list_pdf(self, *, limit: int = 20, page: int = 1) -> Dict[str, Any]:
-        """List PDF templates (async)."""
-        return await self.list(type="pdf", limit=limit, page=page)
+        """List PDF templates (async, client-side filter by outputFormats)."""
+        result = await self.list(limit=limit, page=page)
+        if "data" in result:
+            result["data"] = [
+                t for t in result["data"]
+                if "pdf" in (t.get("outputFormats") or [])
+            ]
+        return result
 
     async def list_excel(self, *, limit: int = 20, page: int = 1) -> Dict[str, Any]:
-        """List Excel templates (async)."""
-        return await self.list(type="excel", limit=limit, page=page)
+        """List Excel templates (async, client-side filter by outputFormats)."""
+        result = await self.list(limit=limit, page=page)
+        if "data" in result:
+            result["data"] = [
+                t for t in result["data"]
+                if "xlsx" in (t.get("outputFormats") or []) or "excel" in (t.get("outputFormats") or [])
+            ]
+        return result

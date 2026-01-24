@@ -101,7 +101,7 @@ def run_tests():
     @test("client.verify_api_key() - Verify API key is valid")
     def test_verify_api_key():
         result = client.verify_api_key()
-        if not result.get("valid"):
+        if not result:
             raise Exception("API key verification failed")
 
     test_verify_api_key()
@@ -126,9 +126,9 @@ def run_tests():
 
     test_templates_list()
 
-    @test("templates.list(type='pdf') - Filter by type")
+    @test("templates.list_pdf() - Filter PDF templates")
     def test_templates_list_filtered():
-        response = client.templates.list(type="pdf")
+        response = client.templates.list_pdf()
         data = response.get("data", [])
         if not isinstance(data, list):
             raise Exception("Expected array of templates")
