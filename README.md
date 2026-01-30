@@ -747,6 +747,17 @@ async with AsyncRynko(api_key="your_api_key") as client:
 |----------|---------|-------------|
 | `verify_webhook_signature(...)` | `Dict[str, Any]` | Verify signature and parse webhook event |
 
+## Examples
+
+See the [`examples/`](./examples) directory for runnable code samples:
+
+- [basic_generate.py](./examples/basic_generate.py) - Generate a PDF and wait for completion
+- [batch_generate.py](./examples/batch_generate.py) - Generate multiple documents
+- [webhook_handler.py](./examples/webhook_handler.py) - Flask webhook endpoint
+- [error_handling.py](./examples/error_handling.py) - Handle API errors
+
+For complete project templates with full setup, see the [developer-resources](https://github.com/rynko-dev/developer-resources) repository.
+
 ## Requirements
 
 - Python 3.8+
@@ -760,5 +771,6 @@ MIT
 
 - **Documentation**: https://docs.rynko.dev/sdk/python
 - **API Reference**: https://docs.rynko.dev/api
+- **Examples**: https://github.com/rynko-dev/developer-resources
 - **GitHub Issues**: https://github.com/rynko-dev/sdk-python/issues
 - **Email**: support@rynko.dev
