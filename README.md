@@ -760,5 +760,5 @@ MIT
 
 - **Documentation**: https://docs.rynko.dev/sdk/python
 - **API Reference**: https://docs.rynko.dev/api
-- **GitHub Issues**: https://github.com/rynko/sdk-python/issues
+- **GitHub Issues**: https://github.com/rynko-dev/sdk-python/issues
 - **Email**: support@rynko.dev

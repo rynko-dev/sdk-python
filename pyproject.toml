@@ -50,8 +50,8 @@ dev = [
 [project.urls]
 Homepage = "https://rynko.dev"
 Documentation = "https://docs.rynko.dev/sdk/python"
-Repository = "https://github.com/rynko/sdk-python"
-Issues = "https://github.com/rynko/sdk-python/issues"
+Repository = "https://github.com/rynko-dev/sdk-python"
+Issues = "https://github.com/rynko-dev/sdk-python/issues"
 
 [tool.hatch.build.targets.wheel]
 packages = ["rynko"]
