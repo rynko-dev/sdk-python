@@ -54,12 +54,19 @@ class DocumentsResource:
             ...         "customerName": "John Doe",
             ...         "invoiceNumber": "INV-001",
             ...         "amount": 150.00,
+            ...     },
+            ...     # Optional: attach metadata for tracking
+            ...     metadata={
+            ...         "orderId": "ord_12345",
+            ...         "customerId": "cust_67890",
             ...     }
             ... )
             >>> print(f"Job ID: {job['jobId']}")
             >>> # Wait for completion to get download URL
             >>> completed = client.documents.wait_for_completion(job["jobId"])
             >>> print(f"Download URL: {completed['downloadUrl']}")
+            >>> # Metadata is returned in job status and webhook payloads
+            >>> print(f"Metadata: {completed.get('metadata')}")
         """
         body: Dict[str, Any] = {
             "templateId": template_id,
@@ -178,9 +185,15 @@ class DocumentsResource:
             >>> batch = client.documents.generate_batch(
             ...     template_id="tmpl_invoice",
             ...     format="pdf",
+            ...     # Optional: batch-level metadata
+            ...     metadata={
+            ...         "batchRunId": "run_20250115",
+            ...         "triggeredBy": "scheduled_job",
+            ...     },
             ...     documents=[
-            ...         {"invoiceNumber": "INV-001", "customerName": "John"},
-            ...         {"invoiceNumber": "INV-002", "customerName": "Jane"},
+            ...         # Each document can have its own variables and metadata
+            ...         {"variables": {"invoiceNumber": "INV-001"}, "metadata": {"rowNumber": 1}},
+            ...         {"variables": {"invoiceNumber": "INV-002"}, "metadata": {"rowNumber": 2}},
             ...     ]
             ... )
             >>> print(f"Batch ID: {batch['batchId']}")

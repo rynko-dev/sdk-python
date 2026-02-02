@@ -200,6 +200,67 @@ def run_tests():
 
             test_wait_for_completion()
 
+        # --- PDF Generation with Metadata ---
+        metadata_job_id = None
+        test_metadata = {
+            "orderId": "ord_test_12345",
+            "customerId": "cust_test_67890",
+            "priority": 1,
+            "isTest": True,
+        }
+
+        @test("documents.generate_pdf() - Generate PDF with metadata")
+        def test_generate_pdf_with_metadata():
+            nonlocal metadata_job_id
+            job = client.documents.generate_pdf(
+                template_id=template_id,
+                variables=template_variables,
+                metadata=test_metadata,
+            )
+
+            if not job.get("jobId") or job.get("status") != "queued":
+                raise Exception("Invalid job response")
+
+            metadata_job_id = job["jobId"]
+            print(f"  Job ID: {metadata_job_id}")
+            print(f"  Status: {job['status']}")
+            print(f"  Metadata sent: {test_metadata}")
+
+        test_generate_pdf_with_metadata()
+
+        if metadata_job_id:
+            @test("documents.wait_for_completion() - Verify metadata in completed job")
+            def test_verify_metadata():
+                completed = client.documents.wait_for_completion(
+                    metadata_job_id,
+                    poll_interval=1.0,
+                    timeout=60.0,
+                )
+
+                if completed["status"] not in ["completed", "failed"]:
+                    raise Exception(f"Job not finished: {completed['status']}")
+
+                print(f"  Final status: {completed['status']}")
+
+                # Verify metadata is returned
+                returned_metadata = completed.get("metadata")
+                if not returned_metadata:
+                    raise Exception("Metadata not returned in completed job")
+
+                if returned_metadata.get("orderId") != test_metadata["orderId"]:
+                    raise Exception(f"Metadata orderId mismatch: expected {test_metadata['orderId']}, got {returned_metadata.get('orderId')}")
+
+                if returned_metadata.get("customerId") != test_metadata["customerId"]:
+                    raise Exception(f"Metadata customerId mismatch: expected {test_metadata['customerId']}, got {returned_metadata.get('customerId')}")
+
+                if returned_metadata.get("priority") != test_metadata["priority"]:
+                    raise Exception(f"Metadata priority mismatch: expected {test_metadata['priority']}, got {returned_metadata.get('priority')}")
+
+                print(f"  Metadata returned: {returned_metadata}")
+                print(f"  ✓ All metadata fields verified")
+
+            test_verify_metadata()
+
         # --- Excel Generation ---
         excel_job_id = None
 

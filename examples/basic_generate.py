@@ -29,13 +29,20 @@ def main():
     template = templates[0]
     print(f"Using template: {template['name']} ({template['id']})")
 
-    # Queue document generation
+    # Queue document generation with metadata for tracking
+    # Metadata is returned in job status and webhook payloads
     job = client.documents.generate_pdf(
         template_id=template["id"],
         variables={
             # Use template's default values or provide your own
             "title": "Example Document",
             "date": "2025-01-30",
+        },
+        # Optional: attach metadata for tracking/correlation
+        metadata={
+            "orderId": "ord_12345",
+            "customerId": "cust_67890",
+            "priority": 1,
         },
     )
 
@@ -53,6 +60,12 @@ def main():
     if completed["status"] == "completed":
         print("Document generated successfully!")
         print(f"Download URL: {completed['downloadUrl']}")
+
+        # Access metadata from the completed job
+        metadata = completed.get("metadata")
+        if metadata:
+            print(f"Metadata: {metadata}")
+            print(f"Order ID: {metadata.get('orderId')}")
     else:
         print(f"Generation failed: {completed.get('errorMessage')}")
 

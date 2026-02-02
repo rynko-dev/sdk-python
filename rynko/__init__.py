@@ -22,13 +22,39 @@ from .client import Rynko, AsyncRynko
 from .http import RetryConfig
 from .exceptions import RynkoError, WebhookSignatureError
 from .webhooks import verify_webhook_signature
+from .types import (
+    MetadataValue,
+    DocumentMetadata,
+    GenerateDocumentOptions,
+    BatchDocument,
+    GenerateBatchOptions,
+    DocumentJobStatus,
+    WebhookEventType,
+    DocumentWebhookData,
+    BatchWebhookData,
+    WebhookEvent,
+)
 
 __version__ = "1.0.0"
 __all__ = [
+    # Client classes
     "Rynko",
     "AsyncRynko",
     "RetryConfig",
+    # Exceptions
     "RynkoError",
     "WebhookSignatureError",
+    # Utilities
     "verify_webhook_signature",
+    # Types
+    "MetadataValue",
+    "DocumentMetadata",
+    "GenerateDocumentOptions",
+    "BatchDocument",
+    "GenerateBatchOptions",
+    "DocumentJobStatus",
+    "WebhookEventType",
+    "DocumentWebhookData",
+    "BatchWebhookData",
+    "WebhookEvent",
 ]

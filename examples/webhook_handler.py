@@ -2,7 +2,8 @@
 """
 Webhook Handler Example (Flask)
 
-This example shows how to verify and handle Rynko webhook events.
+This example shows how to verify and handle Rynko webhook events,
+including accessing custom metadata attached to documents.
 
 Usage:
     pip install flask
@@ -12,7 +13,7 @@ Then send a test webhook:
     curl -X POST http://localhost:5000/webhooks/rynko \
         -H "Content-Type: application/json" \
         -H "X-Rynko-Signature: t=...,v1=..." \
-        -d '{"type":"document.generated","id":"evt_123",...}'
+        -d '{"type":"document.completed","id":"evt_123",...}'
 """
 
 import os
@@ -36,17 +37,44 @@ def handle_webhook():
 
         print(f"Received: {event['type']} ({event['id']})")
 
-        if event["type"] == "document.generated":
+        if event["type"] == "document.completed":
             data = event["data"]
-            print(f"Document ready: {data['downloadUrl']}")
+            print(f"Document ready!")
+            print(f"  Job ID: {data['jobId']}")
+            print(f"  Download URL: {data['downloadUrl']}")
+
+            # Access custom metadata passed in the generate request
+            metadata = data.get("metadata")
+            if metadata:
+                print(f"  Metadata: {metadata}")
+                print(f"  Order ID: {metadata.get('orderId')}")
+                print(f"  Customer ID: {metadata.get('customerId')}")
+                # Use metadata to update your database, trigger workflows, etc.
 
         elif event["type"] == "document.failed":
             data = event["data"]
-            print(f"Document failed: {data['error']}")
+            print(f"Document generation failed!")
+            print(f"  Job ID: {data['jobId']}")
+            print(f"  Error: {data.get('errorMessage')}")
+            print(f"  Error Code: {data.get('errorCode')}")
 
-        elif event["type"] == "document.downloaded":
+            # Access metadata to identify which order/customer failed
+            metadata = data.get("metadata")
+            if metadata:
+                print(f"  Failed for order: {metadata.get('orderId')}")
+
+        elif event["type"] == "batch.completed":
             data = event["data"]
-            print(f"Document downloaded: {data['jobId']}")
+            print(f"Batch completed!")
+            print(f"  Batch ID: {data['batchId']}")
+            print(f"  Total: {data['totalJobs']}")
+            print(f"  Completed: {data['completedJobs']}")
+            print(f"  Failed: {data['failedJobs']}")
+
+            # Access batch-level metadata
+            metadata = data.get("metadata")
+            if metadata:
+                print(f"  Batch run ID: {metadata.get('batchRunId')}")
 
         return jsonify({"received": True}), 200
 
@@ -62,4 +90,9 @@ def handle_webhook():
 if __name__ == "__main__":
     print("Webhook server listening on http://localhost:5000")
     print("Endpoint: POST /webhooks/rynko")
+    print()
+    print("Supported event types:")
+    print("  - document.completed: Document was successfully generated")
+    print("  - document.failed: Document generation failed")
+    print("  - batch.completed: Batch of documents completed")
     app.run(port=5000, debug=True)
