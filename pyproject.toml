@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "rynko"
-version = "1.1.0"
+version = "1.1.1"
 description = "Official Python SDK for Rynko - Generate PDFs and Excel files from templates"
 readme = "README.md"
 license = "MIT"
