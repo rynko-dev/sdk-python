@@ -434,13 +434,21 @@ def handle_webhook():
         if event['type'] == 'document.generated':
             job_id = event['data']['jobId']
             download_url = event['data']['downloadUrl']
+            metadata = event['data'].get('metadata', {})
             print(f"Document {job_id} ready: {download_url}")
+            # Access metadata you passed during generation
+            if metadata:
+                print(f"Order ID: {metadata.get('orderId')}")
             # Download or process the document
 
         elif event['type'] == 'document.failed':
             job_id = event['data']['jobId']
             error = event['data']['error']
+            metadata = event['data'].get('metadata', {})
             print(f"Document {job_id} failed: {error}")
+            # Access metadata for correlation
+            if metadata:
+                print(f"Failed order: {metadata.get('orderId')}")
             # Handle failure (retry, notify user, etc.)
 
         elif event['type'] == 'document.downloaded':
@@ -524,8 +532,8 @@ async def webhook_handler(request: Request):
 
 | Event | Description | Payload |
 |-------|-------------|---------|
-| `document.generated` | Document successfully generated | `jobId`, `templateId`, `format`, `downloadUrl`, `fileSize` |
-| `document.failed` | Document generation failed | `jobId`, `templateId`, `error`, `errorCode` |
+| `document.generated` | Document successfully generated | `jobId`, `templateId`, `format`, `downloadUrl`, `fileSize`, `metadata` |
+| `document.failed` | Document generation failed | `jobId`, `templateId`, `error`, `errorCode`, `metadata` |
 | `document.downloaded` | Document was downloaded | `jobId`, `downloadedAt` |
 
 #### Webhook Headers
