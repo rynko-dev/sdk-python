@@ -86,6 +86,9 @@ class DocumentsResource:
         if use_credit:
             body["useCredit"] = use_credit
 
+        # Automatically set source to identify SDK usage
+        body["source"] = "sdk_python"
+
         response = self._http.post("/api/v1/documents/generate", body)
         return response.get("data", response)
 
@@ -213,6 +216,9 @@ class DocumentsResource:
             body["useDraft"] = use_draft
         if use_credit:
             body["useCredit"] = use_credit
+
+        # Automatically set source to identify SDK usage
+        body["source"] = "sdk_python"
 
         response = self._http.post("/api/v1/documents/generate/batch", body)
         return response.get("data", response)
@@ -357,6 +363,9 @@ class AsyncDocumentsResource:
         if use_credit:
             body["useCredit"] = use_credit
 
+        # Automatically set source to identify SDK usage
+        body["source"] = "sdk_python"
+
         response = await self._http.post("/api/v1/documents/generate", body)
         return response.get("data", response)
 
@@ -432,6 +441,9 @@ class AsyncDocumentsResource:
             body["useDraft"] = use_draft
         if use_credit:
             body["useCredit"] = use_credit
+
+        # Automatically set source to identify SDK usage
+        body["source"] = "sdk_python"
 
         response = await self._http.post("/api/v1/documents/generate/batch", body)
         return response.get("data", response)
