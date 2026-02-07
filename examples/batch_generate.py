@@ -59,7 +59,7 @@ def main():
     print()
     print("Metadata will be returned in webhook payloads:")
     print("  - Batch-level metadata in batch.completed event")
-    print("  - Per-document metadata in each document.completed/failed event")
+    print("  - Per-document metadata in each document.generated/failed event")
     print()
     print("Use metadata to correlate webhook events with your orders.")
 

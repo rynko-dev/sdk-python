@@ -13,7 +13,7 @@ Then send a test webhook:
     curl -X POST http://localhost:5000/webhooks/rynko \
         -H "Content-Type: application/json" \
         -H "X-Rynko-Signature: t=...,v1=..." \
-        -d '{"type":"document.completed","id":"evt_123",...}'
+        -d '{"type":"document.generated","id":"evt_123",...}'
 """
 
 import os
@@ -37,7 +37,7 @@ def handle_webhook():
 
         print(f"Received: {event['type']} ({event['id']})")
 
-        if event["type"] == "document.completed":
+        if event["type"] == "document.generated":
             data = event["data"]
             print(f"Document ready!")
             print(f"  Job ID: {data['jobId']}")
@@ -92,7 +92,7 @@ if __name__ == "__main__":
     print("Endpoint: POST /webhooks/rynko")
     print()
     print("Supported event types:")
-    print("  - document.completed: Document was successfully generated")
+    print("  - document.generated: Document was successfully generated")
     print("  - document.failed: Document generation failed")
     print("  - batch.completed: Batch of documents completed")
     app.run(port=5000, debug=True)

@@ -60,7 +60,8 @@ class GenerateBatchOptions(TypedDict, total=False):
 DocumentJobStatus = Literal["queued", "processing", "completed", "failed"]
 
 WebhookEventType = Literal[
-    "document.completed",
+    "document.generated",
+    "document.downloaded",
     "document.failed",
     "batch.completed",
 ]

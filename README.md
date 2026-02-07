@@ -41,11 +41,7 @@ Official Python SDK for [Rynko](https://rynko.dev) - the document generation pla
 pip install rynko
 ```
 
-Or with optional async support:
-
-```bash
-pip install rynko[async]
-```
+The async client (`AsyncRynko`) is included by default — no extra dependencies needed, since `httpx` provides built-in async support.
 
 ## Quick Start
 
@@ -190,7 +186,6 @@ job = client.documents.generate(
 
     # Optional settings
     filename="contract-acme-2026",  # Custom filename (without extension)
-    workspace_id="ws_abc123",       # Generate in specific workspace
     webhook_url="https://your-app.com/webhooks/document-ready",  # Webhook notification
     metadata={                       # Custom metadata (passed to webhook)
         "orderId": "ORD-12345",
@@ -206,25 +201,31 @@ job = client.documents.generate(
 Generate multiple documents from a single template:
 
 ```python
-# Each dict in the documents list contains variables for one document
+# Each dict in the documents list requires a "variables" key
 batch = client.documents.generate_batch(
     template_id="tmpl_invoice",
     format="pdf",
     documents=[
         {
-            "invoiceNumber": "INV-001",
-            "customerName": "John Doe",
-            "total": 150.00,
+            "variables": {
+                "invoiceNumber": "INV-001",
+                "customerName": "John Doe",
+                "total": 150.00,
+            },
         },
         {
-            "invoiceNumber": "INV-002",
-            "customerName": "Jane Smith",
-            "total": 275.50,
+            "variables": {
+                "invoiceNumber": "INV-002",
+                "customerName": "Jane Smith",
+                "total": 275.50,
+            },
         },
         {
-            "invoiceNumber": "INV-003",
-            "customerName": "Bob Wilson",
-            "total": 89.99,
+            "variables": {
+                "invoiceNumber": "INV-003",
+                "customerName": "Bob Wilson",
+                "total": 89.99,
+            },
         },
     ],
     webhook_url="https://your-app.com/webhooks/batch-complete",
@@ -302,25 +303,15 @@ for job in jobs:
 # Filter by status
 result = client.documents.list_jobs(status="completed")
 
-# Filter by format
-result = client.documents.list_jobs(format="pdf")
-
 # Filter by template
 result = client.documents.list_jobs(template_id="tmpl_invoice")
 
 # Filter by workspace
 result = client.documents.list_jobs(workspace_id="ws_abc123")
 
-# Filter by date range
-result = client.documents.list_jobs(
-    date_from="2026-01-01",
-    date_to="2026-01-31",
-)
-
 # Combine filters
 result = client.documents.list_jobs(
     status="completed",
-    format="pdf",
     template_id="tmpl_invoice",
     limit=50,
 )
@@ -416,14 +407,15 @@ from rynko import verify_webhook_signature, WebhookSignatureError
 @app.route('/webhooks/rynko', methods=['POST'])
 def handle_webhook():
     signature = request.headers.get('X-Rynko-Signature')
-    timestamp = request.headers.get('X-Rynko-Timestamp')
 
     try:
+        # The signature header contains both timestamp and signature: t=<ts>,v1=<hex>
+        # Timestamp is validated automatically (default tolerance: 5 minutes)
         event = verify_webhook_signature(
             payload=request.data.decode('utf-8'),
             signature=signature,
-            timestamp=timestamp,  # Optional but recommended for replay protection
             secret=os.environ['WEBHOOK_SECRET'],
+            tolerance=300,  # Optional: tolerance in seconds (default: 300)
         )
 
         # Process the verified event
@@ -443,7 +435,7 @@ def handle_webhook():
 
         elif event['type'] == 'document.failed':
             job_id = event['data']['jobId']
-            error = event['data']['error']
+            error = event['data']['errorMessage']
             metadata = event['data'].get('metadata', {})
             print(f"Document {job_id} failed: {error}")
             # Access metadata for correlation
@@ -451,9 +443,17 @@ def handle_webhook():
                 print(f"Failed order: {metadata.get('orderId')}")
             # Handle failure (retry, notify user, etc.)
 
+        elif event['type'] == 'batch.completed':
+            batch_id = event['data']['batchId']
+            total = event['data']['totalJobs']
+            completed = event['data']['completedJobs']
+            failed = event['data']['failedJobs']
+            print(f"Batch {batch_id} done: {completed}/{total} succeeded, {failed} failed")
+
         elif event['type'] == 'document.downloaded':
             job_id = event['data']['jobId']
-            print(f"Document {job_id} was downloaded")
+            downloaded_at = event['data']['downloadedAt']
+            print(f"Document {job_id} downloaded at {downloaded_at}")
 
         return 'OK', 200
 
@@ -473,13 +473,11 @@ from rynko import verify_webhook_signature, WebhookSignatureError
 @csrf_exempt
 def webhook_handler(request):
     signature = request.headers.get('X-Rynko-Signature')
-    timestamp = request.headers.get('X-Rynko-Timestamp')
 
     try:
         event = verify_webhook_signature(
             payload=request.body.decode('utf-8'),
             signature=signature,
-            timestamp=timestamp,
             secret=os.environ['WEBHOOK_SECRET'],
         )
 
@@ -506,14 +504,12 @@ app = FastAPI()
 @app.post("/webhooks/rynko")
 async def webhook_handler(request: Request):
     signature = request.headers.get('X-Rynko-Signature')
-    timestamp = request.headers.get('X-Rynko-Timestamp')
     body = await request.body()
 
     try:
         event = verify_webhook_signature(
             payload=body.decode('utf-8'),
             signature=signature,
-            timestamp=timestamp,
             secret=os.environ['WEBHOOK_SECRET'],
         )
 
@@ -533,8 +529,9 @@ async def webhook_handler(request: Request):
 | Event | Description | Payload |
 |-------|-------------|---------|
 | `document.generated` | Document successfully generated | `jobId`, `templateId`, `format`, `downloadUrl`, `fileSize`, `metadata` |
-| `document.failed` | Document generation failed | `jobId`, `templateId`, `error`, `errorCode`, `metadata` |
+| `document.failed` | Document generation failed | `jobId`, `templateId`, `errorMessage`, `errorCode`, `metadata` |
 | `document.downloaded` | Document was downloaded | `jobId`, `downloadedAt` |
+| `batch.completed` | Batch generation finished | `batchId`, `templateId`, `format`, `totalJobs`, `completedJobs`, `failedJobs`, `metadata` |
 
 #### Webhook Headers
 
@@ -542,7 +539,7 @@ Rynko sends these headers with each webhook request:
 
 | Header | Description |
 |--------|-------------|
-| `X-Rynko-Signature` | HMAC-SHA256 signature (format: `v1=<hex>`) |
+| `X-Rynko-Signature` | HMAC-SHA256 signature (format: `t=<timestamp>,v1=<hex>`) |
 | `X-Rynko-Timestamp` | Unix timestamp when the webhook was sent |
 | `X-Rynko-Event-Id` | Unique event identifier |
 | `X-Rynko-Event-Type` | Event type (e.g., `document.generated`) |
@@ -623,6 +620,29 @@ client = Rynko(
     # Optional: Custom headers for all requests
     headers={"X-Custom-Header": "value"},
 )
+```
+
+### Retry Configuration
+
+Automatic retry with exponential backoff is enabled by default:
+
+```python
+from rynko import Rynko, RetryConfig
+
+# Custom retry configuration
+client = Rynko(
+    api_key="your_api_key",
+    retry=RetryConfig(
+        max_attempts=3,           # Maximum retry attempts (default: 5)
+        initial_delay=0.5,        # Initial delay in seconds (default: 1.0)
+        max_delay=10.0,           # Maximum delay in seconds (default: 30.0)
+        max_jitter=0.5,           # Maximum jitter in seconds (default: 1.0)
+        retryable_statuses={429, 503, 504},  # HTTP statuses to retry (default)
+    ),
+)
+
+# Disable retry entirely
+client = Rynko(api_key="your_api_key", retry=False)
 ```
 
 ### Environment Variables

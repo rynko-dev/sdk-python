@@ -73,11 +73,11 @@ class TestWebhookEventParsing(unittest.TestCase):
         return f"t={timestamp},v1={signature}"
 
     def test_document_completed_with_metadata(self):
-        """Should parse document.completed event with metadata."""
+        """Should parse document.generated event with metadata."""
         timestamp = int(time.time())
         payload = json.dumps({
             "id": "evt_123",
-            "type": "document.completed",
+            "type": "document.generated",
             "timestamp": "2025-02-02T12:00:00Z",
             "data": {
                 "jobId": "job_456",
@@ -102,7 +102,7 @@ class TestWebhookEventParsing(unittest.TestCase):
         )
 
         self.assertEqual(event["id"], "evt_123")
-        self.assertEqual(event["type"], "document.completed")
+        self.assertEqual(event["type"], "document.generated")
 
         data = event["data"]
         self.assertEqual(data["jobId"], "job_456")
@@ -154,7 +154,7 @@ class TestWebhookEventParsing(unittest.TestCase):
         timestamp = int(time.time())
         payload = json.dumps({
             "id": "evt_no_meta",
-            "type": "document.completed",
+            "type": "document.generated",
             "timestamp": "2025-02-02T12:00:00Z",
             "data": {
                 "jobId": "job_789",
