@@ -175,8 +175,8 @@ Maintain `CHANGELOG.md`:
 
 ## [1.1.0] - 2025-01-15
 ### Added
-- New `emails.resend()` method
-- Support for custom headers
+- New `documents.wait_for_completion()` method
+- Support for workspace ID in document generation
 
 ### Fixed
 - Timeout handling in async client
@@ -184,8 +184,8 @@ Maintain `CHANGELOG.md`:
 ## [1.0.0] - 2025-01-01
 ### Initial Release
 - Sync and async clients
-- Email sending with templates
-- PDF and Excel attachments
+- Document generation (PDF and Excel)
+- Template listing and retrieval
 - Webhook signature verification
 ```
 
@@ -219,16 +219,15 @@ The SDK requires these Rynko API endpoints:
 
 | Endpoint | SDK Method |
 |----------|------------|
-| `GET /api/v1/me` | `client.me()` |
-| `POST /api/v1/emails/send` | `client.emails.send()` |
-| `POST /api/v1/emails/send-bulk` | `client.emails.send_bulk()` |
-| `GET /api/v1/emails` | `client.emails.list()` |
-| `GET /api/v1/emails/:id` | `client.emails.get()` |
+| `GET /api/auth/verify` | `client.me()` / `client.verify_api_key()` |
+| `POST /api/v1/documents/generate` | `client.documents.generate()` / `generate_pdf()` / `generate_excel()` |
+| `POST /api/v1/documents/generate/batch` | `client.documents.generate_batch()` |
+| `GET /api/v1/documents/jobs/:id` | `client.documents.get_job()` |
+| `GET /api/v1/documents/jobs` | `client.documents.list_jobs()` |
 | `GET /api/v1/templates` | `client.templates.list()` |
 | `GET /api/v1/templates/:id` | `client.templates.get()` |
-| `POST /api/v1/webhook-subscriptions` | `client.webhooks.create()` |
 | `GET /api/v1/webhook-subscriptions` | `client.webhooks.list()` |
-| `DELETE /api/v1/webhook-subscriptions/:id` | `client.webhooks.delete()` |
+| `GET /api/v1/webhook-subscriptions/:id` | `client.webhooks.get()` |
 
 ### Python Version Compatibility
 
@@ -277,13 +276,16 @@ client = Rynko(
 user = client.me()
 print(f"Authenticated as: {user['email']}")
 
-# Test email sending
-result = client.emails.send(
+# Test document generation
+job = client.documents.generate_pdf(
     template_id="tmpl_test",
-    to="test@example.com",
     variables={"name": "Test"},
 )
-print(f"Email sent: {result['id']}")
+print(f"Job queued: {job['jobId']}")
+
+# Wait for completion
+completed = client.documents.wait_for_completion(job["jobId"])
+print(f"Download URL: {completed['downloadUrl']}")
 ```
 
 ### Async Testing
@@ -325,9 +327,9 @@ Update `README.md` with:
 The SDK uses TypedDict for all response types:
 
 ```python
-from rynko.types import SendEmailResponse
+from rynko.types import GenerateResponse
 
-result: SendEmailResponse = client.emails.send(...)
+result: GenerateResponse = client.documents.generate_pdf(...)
 ```
 
 Verify types with mypy:
@@ -421,11 +423,11 @@ async def startup():
 async def shutdown():
     await app.state.rynko.close()
 
-@app.post("/send")
-async def send_email(template_id: str, to: str):
-    result = await app.state.rynko.emails.send(
+@app.post("/generate")
+async def generate_document(template_id: str, format: str = "pdf"):
+    result = await app.state.rynko.documents.generate(
         template_id=template_id,
-        to=to,
+        format=format,
     )
     return result
 ```
@@ -440,10 +442,9 @@ from rynko import Rynko
 
 client = Rynko(api_key=settings.RYNKO_API_KEY)
 
-def send_email(request):
-    result = client.emails.send(
+def generate_document(request):
+    result = client.documents.generate_pdf(
         template_id=request.POST["template_id"],
-        to=request.POST["to"],
         variables=request.POST.get("variables", {}),
     )
     return JsonResponse(result)
