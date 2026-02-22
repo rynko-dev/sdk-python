@@ -75,7 +75,7 @@ print(f"Download URL: {completed['downloadUrl']}")
 - **PDF generation** - Generate PDF documents from templates
 - **Excel generation** - Generate Excel spreadsheets from templates
 - **Batch generation** - Generate multiple documents in a single request
-- **Workspace support** - Generate documents in specific workspaces
+- **Environment support** - Generate documents in specific environments
 - **Webhook verification** - Secure HMAC signature verification for incoming webhooks
 - **Polling utility** - Built-in `wait_for_completion()` method with configurable timeout
 - **Context manager support** - Automatic resource cleanup
@@ -101,7 +101,7 @@ client = Rynko(api_key=os.environ["RYNKO_API_KEY"])
 # Verify authentication
 user = client.me()
 print(f"Authenticated as: {user['email']}")
-print(f"Team: {user.get('teamName')}")
+print(f"Project: {user.get('teamName')}")
 ```
 
 ### Verify API Key
@@ -306,7 +306,7 @@ result = client.documents.list_jobs(status="completed")
 # Filter by template
 result = client.documents.list_jobs(template_id="tmpl_invoice")
 
-# Filter by workspace
+# Filter by environment
 result = client.documents.list_jobs(workspace_id="ws_abc123")
 
 # Combine filters

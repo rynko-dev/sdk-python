@@ -7,7 +7,7 @@ Run these tests against a live API to verify SDK functionality.
 Prerequisites:
 1. Set RYNKO_API_KEY environment variable
 2. Set RYNKO_API_URL environment variable (optional, defaults to https://api.rynko.dev)
-3. Have at least one template created in your workspace
+3. Have at least one template created in your environment
 
 Usage:
     RYNKO_API_KEY=your_key python tests/integration_test.py

@@ -176,7 +176,7 @@ Maintain `CHANGELOG.md`:
 ## [1.1.0] - 2025-01-15
 ### Added
 - New `documents.wait_for_completion()` method
-- Support for workspace ID in document generation
+- Support for environment ID in document generation
 
 ### Fixed
 - Timeout handling in async client
