@@ -124,3 +124,115 @@ class ListTemplatesOptions(TypedDict, total=False):
     type: Optional[Literal["pdf", "excel"]]
     limit: Optional[int]
     page: Optional[int]
+
+
+# ============================================
+# Flow Types
+# ============================================
+
+FlowRunStatus = Literal[
+    "pending",
+    "validating",
+    "approved",
+    "rejected",
+    "review_required",
+    "completed",
+    "delivered",
+    "validation_failed",
+    "render_failed",
+    "delivery_failed",
+]
+
+FLOW_RUN_TERMINAL_STATUSES = frozenset({
+    "completed",
+    "delivered",
+    "approved",
+    "rejected",
+    "validation_failed",
+    "render_failed",
+    "delivery_failed",
+})
+
+
+class FlowGate(TypedDict, total=False):
+    """A Flow gate for validating AI outputs."""
+    id: str
+    name: str
+    slug: Optional[str]
+    description: Optional[str]
+    status: Literal["draft", "published", "archived"]
+    schema_version: Optional[int]
+    created_at: str
+    updated_at: str
+
+
+class FlowValidationError(TypedDict, total=False):
+    """A validation error from a Flow run."""
+    field: Optional[str]
+    rule: Optional[str]
+    message: str
+
+
+class FlowRun(TypedDict, total=False):
+    """A Flow run representing a validation submission."""
+    id: str
+    gate_id: str
+    status: FlowRunStatus
+    input: Dict[str, Any]
+    output: Optional[Dict[str, Any]]
+    errors: Optional[List[FlowValidationError]]
+    metadata: Optional[Dict[str, Any]]
+    created_at: str
+    updated_at: str
+    completed_at: Optional[str]
+
+
+class FlowApproval(TypedDict, total=False):
+    """A Flow approval for human review."""
+    id: str
+    run_id: str
+    gate_id: str
+    status: Literal["pending", "approved", "rejected"]
+    reviewer_email: Optional[str]
+    reviewer_note: Optional[str]
+    created_at: str
+    updated_at: str
+    resolved_at: Optional[str]
+
+
+class FlowDelivery(TypedDict, total=False):
+    """A Flow delivery representing a webhook delivery attempt."""
+    id: str
+    run_id: str
+    status: Literal["pending", "delivered", "failed"]
+    url: Optional[str]
+    http_status: Optional[int]
+    attempts: int
+    last_attempt_at: Optional[str]
+    error: Optional[str]
+    created_at: str
+
+
+class SubmitRunOptions(TypedDict, total=False):
+    """Options for submitting a Flow run."""
+    input: Dict[str, Any]
+    metadata: Optional[Dict[str, Any]]
+    webhook_url: Optional[str]
+
+
+class ListGatesOptions(TypedDict, total=False):
+    status: Optional[Literal["draft", "published", "archived"]]
+    limit: Optional[int]
+    page: Optional[int]
+
+
+class ListRunsOptions(TypedDict, total=False):
+    status: Optional[FlowRunStatus]
+    limit: Optional[int]
+    page: Optional[int]
+
+
+class ListApprovalsOptions(TypedDict, total=False):
+    status: Optional[Literal["pending", "approved", "rejected"]]
+    limit: Optional[int]
+    page: Optional[int]

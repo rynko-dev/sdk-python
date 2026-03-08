@@ -28,6 +28,9 @@ RYNKO_API_KEY=your_key python examples/basic_generate.py
 | [batch_generate.py](./batch_generate.py) | Generate multiple documents in one request |
 | [webhook_handler.py](./webhook_handler.py) | Flask server that verifies and handles webhooks |
 | [error_handling.py](./error_handling.py) | Handle API errors gracefully |
+| [flow_submit_and_wait.py](./flow_submit_and_wait.py) | Submit a Flow run and wait for validation result |
+| [flow_approval_workflow.py](./flow_approval_workflow.py) | Programmatically process pending Flow approvals |
+| [flow_webhook_handler.py](./flow_webhook_handler.py) | Flask server that handles Flow webhook events |
 
 ## Webhook Handler Dependencies
 

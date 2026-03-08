@@ -33,9 +33,21 @@ from .types import (
     DocumentWebhookData,
     BatchWebhookData,
     WebhookEvent,
+    # Flow types
+    FlowRunStatus,
+    FLOW_RUN_TERMINAL_STATUSES,
+    FlowGate,
+    FlowRun,
+    FlowValidationError,
+    FlowApproval,
+    FlowDelivery,
+    SubmitRunOptions,
+    ListGatesOptions,
+    ListRunsOptions,
+    ListApprovalsOptions,
 )
 
-__version__ = "1.2.2"
+__version__ = "1.3.0"
 __all__ = [
     # Client classes
     "Rynko",
@@ -57,4 +69,16 @@ __all__ = [
     "DocumentWebhookData",
     "BatchWebhookData",
     "WebhookEvent",
+    # Flow types
+    "FlowRunStatus",
+    "FLOW_RUN_TERMINAL_STATUSES",
+    "FlowGate",
+    "FlowRun",
+    "FlowValidationError",
+    "FlowApproval",
+    "FlowDelivery",
+    "SubmitRunOptions",
+    "ListGatesOptions",
+    "ListRunsOptions",
+    "ListApprovalsOptions",
 ]
