@@ -1,6 +1,6 @@
 # rynko
 
-Official Python SDK for [Rynko](https://rynko.dev) - the document generation platform with unified template design for PDF and Excel documents.
+Official Python SDK for [Rynko](https://rynko.dev) - the document generation and AI output validation platform with unified template design for PDF and Excel documents.
 
 [![PyPI version](https://img.shields.io/pypi/v/rynko.svg)](https://pypi.org/project/rynko/)
 [![Python versions](https://img.shields.io/pypi/pyversions/rynko.svg)](https://pypi.org/project/rynko/)
@@ -27,6 +27,11 @@ Official Python SDK for [Rynko](https://rynko.dev) - the document generation pla
 - [Webhooks](#webhooks)
   - [List Webhooks](#list-webhooks)
   - [Verify Webhook Signatures](#verify-webhook-signatures)
+- [Rynko Flow](#rynko-flow)
+  - [Submit and Wait for Run](#submit-and-wait-for-run)
+  - [List Gates](#list-gates)
+  - [Manage Approvals](#manage-approvals)
+  - [Monitor Deliveries](#monitor-deliveries)
 - [Async Client](#async-client)
 - [Configuration](#configuration)
 - [Error Handling](#error-handling)
@@ -78,6 +83,7 @@ print(f"Download URL: {completed['downloadUrl']}")
 - **Environment support** - Generate documents in specific environments
 - **Webhook verification** - Secure HMAC signature verification for incoming webhooks
 - **Polling utility** - Built-in `wait_for_completion()` method with configurable timeout
+- **Rynko Flow** - Submit runs for validation, manage approvals, and monitor deliveries
 - **Context manager support** - Automatic resource cleanup
 
 ## Authentication
@@ -544,6 +550,112 @@ Rynko sends these headers with each webhook request:
 | `X-Rynko-Event-Id` | Unique event identifier |
 | `X-Rynko-Event-Type` | Event type (e.g., `document.generated`) |
 
+## Rynko Flow
+
+[Rynko Flow](https://rynko.dev/flow) is an AI output validation gateway. Define gates with schemas and business rules, submit data for validation, handle human-in-the-loop approvals, and track webhook deliveries.
+
+### Submit and Wait for Run
+
+```python
+# Submit data to a gate for validation
+run = client.flow.submit_run(
+    "gate_abc123",
+    input={
+        "customerName": "John Doe",
+        "email": "john@example.com",
+        "amount": 150.00,
+    },
+    metadata={"source": "checkout"},
+    webhook_url="https://your-app.com/webhooks/flow",
+)
+
+print(f"Run ID: {run['id']}")
+print(f"Status: {run['status']}")  # 'pending'
+
+# Wait for validation result (polls until terminal state)
+result = client.flow.wait_for_run(
+    run["id"],
+    poll_interval=2.0,   # Check every 2 seconds (default: 1.0)
+    timeout=120.0,        # Wait up to 2 minutes (default: 60.0)
+)
+
+if result["status"] == "approved":
+    print("Validation passed!", result.get("output"))
+elif result["status"] == "rejected":
+    print("Validation failed:", result.get("errors"))
+elif result["status"] == "validation_failed":
+    print("Schema validation errors:", result.get("errors"))
+```
+
+### List Gates
+
+```python
+# List all gates
+result = client.flow.list_gates()
+for gate in result["data"]:
+    print(f"{gate['id']}: {gate['name']} ({gate['status']})")
+
+# Get a specific gate
+gate = client.flow.get_gate("gate_abc123")
+print(f"Gate: {gate['name']}")
+print(f"Schema: {gate.get('schema')}")
+```
+
+### List and Filter Runs
+
+```python
+# List all runs
+result = client.flow.list_runs()
+
+# Filter by status
+result = client.flow.list_runs(status="approved")
+
+# List runs for a specific gate
+result = client.flow.list_runs_by_gate("gate_abc123")
+
+# List active (in-progress) runs
+result = client.flow.list_active_runs()
+print(f"{len(result['data'])} runs in progress")
+
+# Get a specific run
+run = client.flow.get_run("run_abc123")
+print(f"Status: {run['status']}")
+```
+
+### Manage Approvals
+
+When a gate has approval rules, runs may enter a `review_required` state:
+
+```python
+# List pending approvals
+result = client.flow.list_approvals(status="pending")
+
+for approval in result["data"]:
+    print(f"Approval {approval['id']} for run {approval['runId']}")
+
+    # Approve with a note
+    client.flow.approve(approval["id"], note="Looks good, approved.")
+
+    # Or reject with a reason
+    # client.flow.reject(approval["id"], reason="Amount exceeds limit.")
+```
+
+### Monitor Deliveries
+
+Track webhook deliveries for completed runs:
+
+```python
+# List deliveries for a run
+result = client.flow.list_deliveries("run_abc123")
+
+for delivery in result["data"]:
+    print(f"{delivery['id']}: {delivery['status']} → {delivery.get('url')}")
+
+# Retry a failed delivery
+retried = client.flow.retry_delivery("delivery_abc123")
+print(f"Retry status: {retried['status']}")
+```
+
 ## Async Client
 
 For async applications (FastAPI, aiohttp, etc.), use `AsyncRynko`:
@@ -573,6 +685,14 @@ async def main():
         result = await client.templates.list()
         for template in result["data"]:
             print(f"Template: {template['name']}")
+
+        # Submit a Flow run
+        run = await client.flow.submit_run(
+            "gate_abc123",
+            input={"name": "John Doe", "amount": 150.00},
+        )
+        result = await client.flow.wait_for_run(run["id"])
+        print(f"Flow result: {result['status']}")
 
 asyncio.run(main())
 ```
@@ -769,6 +889,24 @@ async with AsyncRynko(api_key="your_api_key") as client:
 | `get(webhook_id)` | `Dict[str, Any]` | Get webhook subscription by ID |
 | `list()` | `Dict[str, Any]` | List all webhook subscriptions |
 
+### Flow Resource
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `list_gates(...)` | `Dict[str, Any]` | List all gates |
+| `get_gate(gate_id)` | `Dict[str, Any]` | Get gate by ID |
+| `submit_run(gate_id, ...)` | `Dict[str, Any]` | Submit a run for validation |
+| `get_run(run_id)` | `Dict[str, Any]` | Get run by ID |
+| `list_runs(...)` | `Dict[str, Any]` | List all runs |
+| `list_runs_by_gate(gate_id, ...)` | `Dict[str, Any]` | List runs for a gate |
+| `list_active_runs(...)` | `Dict[str, Any]` | List active runs |
+| `wait_for_run(run_id, ...)` | `Dict[str, Any]` | Poll until run reaches terminal state |
+| `list_approvals(...)` | `Dict[str, Any]` | List approvals |
+| `approve(approval_id, ...)` | `Dict[str, Any]` | Approve a pending approval |
+| `reject(approval_id, ...)` | `Dict[str, Any]` | Reject a pending approval |
+| `list_deliveries(run_id, ...)` | `Dict[str, Any]` | List deliveries for a run |
+| `retry_delivery(delivery_id)` | `Dict[str, Any]` | Retry a failed delivery |
+
 ### Utilities
 
 | Function | Returns | Description |
@@ -783,6 +921,9 @@ See the [`examples/`](./examples) directory for runnable code samples:
 - [batch_generate.py](./examples/batch_generate.py) - Generate multiple documents
 - [webhook_handler.py](./examples/webhook_handler.py) - Flask webhook endpoint
 - [error_handling.py](./examples/error_handling.py) - Handle API errors
+- [flow_submit_and_wait.py](./examples/flow_submit_and_wait.py) - Submit a run and wait for validation
+- [flow_approval_workflow.py](./examples/flow_approval_workflow.py) - Programmatic approval automation
+- [flow_webhook_handler.py](./examples/flow_webhook_handler.py) - Flask webhook handler for Flow events
 
 For complete project templates with full setup, see the [developer-resources](https://github.com/rynko-dev/developer-resources) repository.
 
