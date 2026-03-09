@@ -46,8 +46,7 @@ class FlowResource:
             >>> for gate in result["data"]:
             ...     print(gate["name"], gate["status"])
         """
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -128,8 +127,7 @@ class FlowResource:
         Returns:
             Dict with 'data' (list) and 'meta' (pagination)
         """
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -150,8 +148,7 @@ class FlowResource:
         Returns:
             Dict with 'data' (list) and 'meta' (pagination)
         """
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -170,8 +167,7 @@ class FlowResource:
         Returns:
             Dict with 'data' (list) and 'meta' (pagination)
         """
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
 
         response = self._http.get("/api/flow/runs/active", params)
         return self._paginate(response, "runs", page, limit)
@@ -236,8 +232,7 @@ class FlowResource:
             >>> for approval in result["data"]:
             ...     print(f"Approval {approval['id']} for run {approval['runId']}")
         """
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -308,8 +303,7 @@ class FlowResource:
         Returns:
             Dict with 'data' (list) and 'meta' (pagination)
         """
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
 
         response = self._http.get(f"/api/flow/runs/{run_id}/deliveries", params)
         return self._paginate(response, "deliveries", page, limit)
@@ -360,8 +354,7 @@ class AsyncFlowResource:
         page: int = 1,
     ) -> Dict[str, Any]:
         """List all gates (async)."""
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -403,8 +396,7 @@ class AsyncFlowResource:
         page: int = 1,
     ) -> Dict[str, Any]:
         """List all runs (async)."""
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -420,8 +412,7 @@ class AsyncFlowResource:
         page: int = 1,
     ) -> Dict[str, Any]:
         """List runs for a specific gate (async)."""
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -435,8 +426,7 @@ class AsyncFlowResource:
         page: int = 1,
     ) -> Dict[str, Any]:
         """List active (non-terminal) runs (async)."""
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
 
         response = await self._http.get("/api/flow/runs/active", params)
         return _paginate(response, "runs", page, limit)
@@ -485,8 +475,7 @@ class AsyncFlowResource:
         page: int = 1,
     ) -> Dict[str, Any]:
         """List approvals (async)."""
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
         if status:
             params["status"] = status
 
@@ -533,8 +522,7 @@ class AsyncFlowResource:
         page: int = 1,
     ) -> Dict[str, Any]:
         """List deliveries for a run (async)."""
-        offset = (page - 1) * limit
-        params: Dict[str, Any] = {"limit": limit, "offset": offset}
+        params: Dict[str, Any] = {"limit": limit, "page": page}
 
         response = await self._http.get(f"/api/flow/runs/{run_id}/deliveries", params)
         return _paginate(response, "deliveries", page, limit)
