@@ -280,6 +280,19 @@ class FlowResource:
 
         return self._http.post(f"/api/flow/approvals/{approval_id}/reject", body)
 
+    def resend_approval_email(self, run_id: str) -> Dict[str, Any]:
+        """
+        Resend approval notification emails for a run.
+
+        Re-sends approval request emails to all pending approvers for a run
+        that is in ``review_required`` status.
+
+        Example:
+            >>> result = client.flow.resend_approval_email("run_abc123")
+            >>> print(f"Sent {result['sentCount']} of {result['totalApprovers']} emails")
+        """
+        return self._http.post(f"/api/flow/approvals/resend/{run_id}", {})
+
     # ---- Deliveries ----
 
     def list_deliveries(
@@ -505,6 +518,10 @@ class AsyncFlowResource:
             body["reason"] = reason
 
         return await self._http.post(f"/api/flow/approvals/{approval_id}/reject", body)
+
+    async def resend_approval_email(self, run_id: str) -> Dict[str, Any]:
+        """Resend approval notification emails for a run (async)."""
+        return await self._http.post(f"/api/flow/approvals/resend/{run_id}", {})
 
     # ---- Deliveries ----
 
