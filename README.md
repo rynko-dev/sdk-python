@@ -538,6 +538,11 @@ async def webhook_handler(request: Request):
 | `document.failed` | Document generation failed | `jobId`, `templateId`, `errorMessage`, `errorCode`, `metadata` |
 | `document.downloaded` | Document was downloaded | `jobId`, `downloadedAt` |
 | `batch.completed` | Batch generation finished | `batchId`, `templateId`, `format`, `totalJobs`, `completedJobs`, `failedJobs`, `metadata` |
+| `flow.run.completed` | Flow run completed successfully | `runId`, `gateId`, `status`, `output` |
+| `flow.run.approved` | Flow run approved by reviewer | `runId`, `gateId`, `status`, `approvalId` |
+| `flow.run.rejected` | Flow run rejected by reviewer | `runId`, `gateId`, `status`, `reason` |
+| `flow.run.review_required` | Flow run requires human review | `runId`, `gateId`, `status` |
+| `flow.delivery.failed` | Flow delivery failed | `deliveryId`, `runId`, `error`, `attempts` |
 
 #### Webhook Headers
 
@@ -570,21 +575,26 @@ run = client.flow.submit_run(
 )
 
 print(f"Run ID: {run['id']}")
-print(f"Status: {run['status']}")  # 'pending'
+print(f"Status: {run['status']}")    # 'validated' or 'validation_failed'
+print(f"Success: {run['success']}")  # True or False
 
-# Wait for validation result (polls until terminal state)
+# Check immediate validation result
+if not run["success"]:
+    print("Validation failed:", run.get("error"))
+
+# For gates with rendering/approval steps, wait for terminal state
 result = client.flow.wait_for_run(
     run["id"],
     poll_interval=2.0,   # Check every 2 seconds (default: 1.0)
     timeout=120.0,        # Wait up to 2 minutes (default: 60.0)
 )
 
-if result["status"] == "approved":
+if result["status"] in ("validated", "approved"):
     print("Validation passed!", result.get("output"))
-elif result["status"] == "rejected":
-    print("Validation failed:", result.get("errors"))
 elif result["status"] == "validation_failed":
-    print("Schema validation errors:", result.get("errors"))
+    print("Validation failed:", result.get("errors"))
+elif result["status"] == "rejected":
+    print("Rejected by reviewer:", result.get("errors"))
 ```
 
 ### List Gates
@@ -624,7 +634,7 @@ print(f"Status: {run['status']}")
 
 ### Manage Approvals
 
-When a gate has approval rules, runs may enter a `review_required` state:
+When a gate has approval rules, runs may enter a `pending_approval` state:
 
 ```python
 # List pending approvals
