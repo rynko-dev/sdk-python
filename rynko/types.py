@@ -64,6 +64,11 @@ WebhookEventType = Literal[
     "document.downloaded",
     "document.failed",
     "batch.completed",
+    "flow.run.completed",
+    "flow.run.approved",
+    "flow.run.rejected",
+    "flow.run.review_required",
+    "flow.delivery.failed",
 ]
 
 
@@ -95,12 +100,32 @@ class BatchWebhookData(TypedDict, total=False):
     """Custom metadata passed in the batch request."""
 
 
+class FlowRunWebhookData(TypedDict, total=False):
+    """Data payload for Flow run webhook events."""
+    run_id: str
+    gate_id: str
+    gate_name: str
+    status: str
+    input: Optional[Dict[str, Any]]
+    output: Optional[Dict[str, Any]]
+    errors: Optional[List[Dict[str, Any]]]
+    metadata: Optional[Dict[str, Any]]
+
+
+class FlowDeliveryWebhookData(TypedDict, total=False):
+    """Data payload for Flow delivery webhook events."""
+    delivery_id: str
+    run_id: str
+    error: str
+    attempts: int
+
+
 class WebhookEvent(TypedDict):
     """Webhook event payload."""
     id: str
     type: WebhookEventType
     timestamp: str
-    data: Union[DocumentWebhookData, BatchWebhookData]
+    data: Union[DocumentWebhookData, BatchWebhookData, FlowRunWebhookData, FlowDeliveryWebhookData]
 
 
 class CreateWebhookOptions(TypedDict, total=False):

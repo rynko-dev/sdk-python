@@ -32,6 +32,8 @@ from .types import (
     WebhookEventType,
     DocumentWebhookData,
     BatchWebhookData,
+    FlowRunWebhookData,
+    FlowDeliveryWebhookData,
     WebhookEvent,
     # Flow types
     FlowRunStatus,
@@ -47,7 +49,7 @@ from .types import (
     ListApprovalsOptions,
 )
 
-__version__ = "1.3.0"
+__version__ = "1.3.3"
 __all__ = [
     # Client classes
     "Rynko",
@@ -68,6 +70,8 @@ __all__ = [
     "WebhookEventType",
     "DocumentWebhookData",
     "BatchWebhookData",
+    "FlowRunWebhookData",
+    "FlowDeliveryWebhookData",
     "WebhookEvent",
     # Flow types
     "FlowRunStatus",
