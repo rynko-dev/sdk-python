@@ -96,7 +96,7 @@ class FlowResource:
             >>> result = client.flow.wait_for_run(run["id"])
             >>> print(f"Status: {result['status']}")
         """
-        body: Dict[str, Any] = {"input": input}
+        body: Dict[str, Any] = {"payload": input}
         if metadata:
             body["metadata"] = metadata
         if webhook_url:
@@ -383,7 +383,7 @@ class AsyncFlowResource:
         webhook_url: Optional[str] = None,
     ) -> Dict[str, Any]:
         """Submit a run to a gate for validation (async)."""
-        body: Dict[str, Any] = {"input": input}
+        body: Dict[str, Any] = {"payload": input}
         if metadata:
             body["metadata"] = metadata
         if webhook_url:
