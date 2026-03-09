@@ -49,7 +49,7 @@ from .types import (
     ListApprovalsOptions,
 )
 
-__version__ = "1.3.4"
+__version__ = "1.3.5"
 __all__ = [
     # Client classes
     "Rynko",

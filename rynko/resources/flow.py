@@ -10,6 +10,7 @@ from typing import Any, Dict, List, Optional
 from ..http import HttpClient, AsyncHttpClient
 
 TERMINAL_STATUSES = frozenset({
+    "validated",
     "completed",
     "delivered",
     "approved",
@@ -101,7 +102,11 @@ class FlowResource:
         if webhook_url:
             body["webhookUrl"] = webhook_url
 
-        return self._http.post(f"/api/flow/gates/{gate_id}/runs", body)
+        response = self._http.post(f"/api/flow/gates/{gate_id}/runs", body)
+        # Map runId → id for consistency with get_run/list_runs
+        if "runId" in response and "id" not in response:
+            response["id"] = response["runId"]
+        return response
 
     def get_run(self, run_id: str) -> Dict[str, Any]:
         """
@@ -382,7 +387,11 @@ class AsyncFlowResource:
         if webhook_url:
             body["webhookUrl"] = webhook_url
 
-        return await self._http.post(f"/api/flow/gates/{gate_id}/runs", body)
+        response = await self._http.post(f"/api/flow/gates/{gate_id}/runs", body)
+        # Map runId → id for consistency with get_run/list_runs
+        if "runId" in response and "id" not in response:
+            response["id"] = response["runId"]
+        return response
 
     async def get_run(self, run_id: str) -> Dict[str, Any]:
         """Get a run by ID (async)."""
