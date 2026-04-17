@@ -21,17 +21,36 @@ Official Python SDK for [Rynko](https://rynko.dev) - the document generation and
 - [Document Jobs](#document-jobs)
   - [Get Job Status](#get-job-status)
   - [List Jobs](#list-jobs)
+  - [Delete Job](#delete-job)
+  - [Retry Job](#retry-job)
+  - [Cancel Job](#cancel-job)
+  - [Batch Status](#batch-status)
+  - [Download Document](#download-document)
 - [Templates](#templates)
   - [List Templates](#list-templates)
   - [Get Template Details](#get-template-details)
 - [Webhooks](#webhooks)
   - [List Webhooks](#list-webhooks)
+  - [Create Webhook](#create-webhook)
+  - [Update Webhook](#update-webhook)
+  - [Delete Webhook](#delete-webhook)
+  - [Rotate Secret](#rotate-secret)
+  - [Test Webhook](#test-webhook)
+  - [Webhook Deliveries](#webhook-deliveries)
   - [Verify Webhook Signatures](#verify-webhook-signatures)
 - [Rynko Flow](#rynko-flow)
   - [Submit and Wait for Run](#submit-and-wait-for-run)
   - [List Gates](#list-gates)
+  - [Gate Management](#gate-management)
+  - [Test and Validate](#test-and-validate)
   - [Manage Approvals](#manage-approvals)
   - [Monitor Deliveries](#monitor-deliveries)
+  - [Run Payloads and Chains](#run-payloads-and-chains)
+- [Rynko Extract](#rynko-extract)
+  - [Create Extraction Job](#create-extraction-job)
+  - [Schema Discovery](#schema-discovery)
+  - [Extraction Configs](#extraction-configs)
+  - [Flow Integration](#flow-integration)
 - [Async Client](#async-client)
 - [Configuration](#configuration)
 - [Error Handling](#error-handling)
@@ -83,7 +102,9 @@ print(f"Download URL: {completed['downloadUrl']}")
 - **Environment support** - Generate documents in specific environments
 - **Webhook verification** - Secure HMAC signature verification for incoming webhooks
 - **Polling utility** - Built-in `wait_for_completion()` method with configurable timeout
-- **Rynko Flow** - Submit runs for validation, manage approvals, and monitor deliveries
+- **Rynko Flow** - Submit runs for validation, manage approvals, gate CRUD, and monitor deliveries
+- **Rynko Extract** - Document data extraction with AI, schema discovery, and config management
+- **Webhook management** - Full CRUD for webhook subscriptions, secret rotation, and delivery tracking
 - **Context manager support** - Automatic resource cleanup
 
 ## Authentication
@@ -323,6 +344,54 @@ result = client.documents.list_jobs(
 )
 ```
 
+### Delete Job
+
+```python
+client.documents.delete("job_abc123")
+```
+
+### Retry Job
+
+```python
+result = client.documents.retry("job_abc123")
+print(f"New job: {result['jobId']}")
+```
+
+### Cancel Job
+
+```python
+client.documents.cancel("job_abc123")
+```
+
+### Batch Status
+
+```python
+# Get batch status
+batch = client.documents.get_batch("batch_abc123")
+print(f"Status: {batch['status']}")
+print(f"Progress: {batch['completedJobs']}/{batch['totalJobs']}")
+
+# Wait for batch to complete (polls until terminal state)
+completed = client.documents.wait_for_batch_completion(
+    "batch_abc123",
+    poll_interval=2.0,   # Check every 2 seconds (default)
+    timeout=300.0,        # Wait up to 5 minutes (default)
+)
+print(f"Final status: {completed['status']}")
+```
+
+### Download Document
+
+```python
+# Download the generated document as bytes
+job = client.documents.wait_for_completion("job_abc123")
+content = client.documents.download(job["downloadUrl"])
+
+# Save to file
+with open("invoice.pdf", "wb") as f:
+    f.write(content)
+```
+
 ## Templates
 
 ### List Templates
@@ -375,7 +444,7 @@ if "variables" in template and template["variables"]:
 
 ## Webhooks
 
-Webhook subscriptions are managed through the [Rynko Dashboard](https://app.rynko.dev). The SDK provides read-only access to view webhooks and utilities for signature verification.
+The SDK provides full CRUD access to webhook subscriptions and utilities for signature verification.
 
 ### List Webhooks
 
@@ -399,6 +468,60 @@ print(f"URL: {webhook['url']}")
 print(f"Events: {webhook['events']}")
 print(f"Active: {webhook['isActive']}")
 print(f"Description: {webhook.get('description')}")
+```
+
+### Create Webhook
+
+```python
+webhook = client.webhooks.create(
+    url="https://your-app.com/webhooks/rynko",
+    events=["document.generated", "document.failed"],
+    description="Production notifications",
+)
+print(f"Webhook ID: {webhook['id']}")
+print(f"Secret: {webhook['secret']}")  # Store this securely
+```
+
+### Update Webhook
+
+```python
+webhook = client.webhooks.update(
+    "wh_abc123",
+    events=["document.generated"],
+    is_active=False,
+)
+```
+
+### Delete Webhook
+
+```python
+client.webhooks.delete("wh_abc123")
+```
+
+### Rotate Secret
+
+```python
+result = client.webhooks.rotate_secret("wh_abc123")
+print(f"New secret: {result['secret']}")
+```
+
+### Test Webhook
+
+```python
+result = client.webhooks.test("wh_abc123")
+print(f"Delivery status: {result['status']}")
+```
+
+### Webhook Deliveries
+
+```python
+# List deliveries for a webhook
+result = client.webhooks.list_deliveries("wh_abc123")
+for delivery in result.get("data", []):
+    print(f"{delivery['id']}: {delivery['status']}")
+
+# Retry a failed delivery
+client.webhooks.retry_delivery("wh_abc123", "del_xyz789")
 ```
 
 ### Verify Webhook Signatures
@@ -632,6 +755,72 @@ run = client.flow.get_run("run_abc123")
 print(f"Status: {run['status']}")
 ```
 
+### Gate Management
+
+```python
+# Create a gate
+gate = client.flow.create_gate(
+    name="Order Validation",
+    description="Validates order data from AI agents",
+    schema={
+        "type": "object",
+        "properties": {
+            "orderId": {"type": "string"},
+            "amount": {"type": "number", "minimum": 0},
+        },
+        "required": ["orderId", "amount"],
+    },
+)
+print(f"Gate ID: {gate['id']}")
+
+# Update a gate
+client.flow.update_gate(gate["id"], name="Updated Order Validation")
+
+# Update gate schema
+client.flow.update_gate_schema(
+    gate["id"],
+    schema={"type": "object", "properties": {"orderId": {"type": "string"}}},
+)
+
+# Publish a gate
+client.flow.publish_gate(gate["id"])
+
+# Export and import gates
+config = client.flow.export_gate(gate["id"])
+imported = client.flow.import_gate(data=config)
+
+# Rollback to previous version
+client.flow.rollback_gate(gate["id"])
+
+# Delete a gate
+client.flow.delete_gate(gate["id"])
+```
+
+### Test and Validate
+
+```python
+# Dry-run test (no run created)
+result = client.flow.test_gate(
+    "gate_abc123",
+    payload={"orderId": "ORD-001", "amount": 150.00},
+)
+print(f"Valid: {result.get('valid')}")
+
+# Validate with run creation
+result = client.flow.validate_gate(
+    "gate_abc123",
+    payload={"orderId": "ORD-001", "amount": 150.00},
+    metadata={"source": "api_test"},
+)
+print(f"Validation ID: {result['validationId']}")
+
+# Verify a previous validation
+verified = client.flow.verify_validation(
+    validation_id=result["validationId"],
+    payload={"orderId": "ORD-001", "amount": 150.00},
+)
+```
+
 ### Manage Approvals
 
 When a gate has approval rules, runs may enter a `pending_approval` state:
@@ -664,6 +853,133 @@ for delivery in result["data"]:
 # Retry a failed delivery
 retried = client.flow.retry_delivery("delivery_abc123")
 print(f"Retry status: {retried['status']}")
+```
+
+### Run Payloads and Chains
+
+```python
+# Get the payload for a run
+payload = client.flow.get_run_payload("run_abc123")
+print(payload)
+
+# Get a specific field from the payload
+field_value = client.flow.get_run_payload("run_abc123", field="orderId")
+
+# Get a chain of related runs by correlation ID
+chain = client.flow.get_run_chain("corr_abc123")
+for run in chain.get("runs", []):
+    print(f"{run['id']}: {run['status']}")
+
+# Get a transaction
+txn = client.flow.get_transaction("txn_abc123")
+print(f"Transaction status: {txn['status']}")
+```
+
+## Rynko Extract
+
+[Rynko Extract](https://rynko.dev/extract) provides AI-powered document data extraction. Upload files, define schemas, and extract structured data from PDFs, images, and other documents.
+
+### Create Extraction Job
+
+```python
+# Extract data from a document
+with open("invoice.pdf", "rb") as f:
+    job = client.extract.create_job(
+        files=[("invoice.pdf", f.read(), "application/pdf")],
+        instructions="Extract invoice number, date, and line items",
+    )
+
+print(f"Job ID: {job['id']}")
+print(f"Status: {job['status']}")
+
+# Check results
+result = client.extract.get_job(job["id"])
+if result["status"] == "completed":
+    print(result["result"])
+
+# List jobs
+jobs = client.extract.list_jobs(status="completed", limit=10)
+
+# Cancel a job
+client.extract.cancel_job(job["id"])
+
+# Check usage
+usage = client.extract.get_usage()
+print(f"Used: {usage['used']}, Remaining: {usage['remaining']}")
+```
+
+### Schema Discovery
+
+```python
+# Discover schema from sample documents
+with open("invoice.pdf", "rb") as f:
+    schema = client.extract.discover(
+        files=[("invoice.pdf", f.read(), "application/pdf")],
+        instructions="Find all invoice fields",
+    )
+print(f"Discovered schema: {schema}")
+```
+
+### Extraction Configs
+
+```python
+# Create a reusable extraction config
+config = client.extract.create_config(
+    name="Invoice Extractor",
+    schema={
+        "type": "object",
+        "properties": {
+            "invoiceNumber": {"type": "string"},
+            "date": {"type": "string"},
+            "total": {"type": "number"},
+        },
+    },
+    instructions="Extract all invoice fields",
+)
+
+# Publish the config
+client.extract.publish_config(config["id"])
+
+# Run extraction using a config
+with open("invoice.pdf", "rb") as f:
+    job = client.extract.run_config(
+        config["id"],
+        files=[("invoice.pdf", f.read(), "application/pdf")],
+    )
+
+# List configs
+configs = client.extract.list_configs(status="published")
+
+# Update a config
+client.extract.update_config(config["id"], name="Updated Extractor")
+
+# Version management
+versions = client.extract.get_config_versions(config["id"])
+client.extract.restore_config_version(config["id"], "ver_xyz")
+
+# Delete a config
+client.extract.delete_config(config["id"])
+```
+
+### Flow Integration
+
+```python
+# Extract with Flow gate validation
+with open("invoice.pdf", "rb") as f:
+    job = client.extract.extract_with_gate(
+        "gate_abc123",
+        files=[("invoice.pdf", f.read(), "application/pdf")],
+        instructions="Extract invoice data",
+    )
+
+# Submit files to a Flow gate pipeline
+with open("document.pdf", "rb") as f:
+    run = client.extract.submit_file_run(
+        "gate_abc123",
+        files=[("document.pdf", f.read(), "application/pdf")],
+        metadata={"source": "upload"},
+    )
+print(f"Run ID: {run['id']}")
 ```
 
 ## Async Client
@@ -881,7 +1197,13 @@ async with AsyncRynko(api_key="your_api_key") as client:
 | `generate_batch(...)` | `Dict[str, Any]` | Generate multiple documents |
 | `get_job(job_id)` | `Dict[str, Any]` | Get document job by ID |
 | `list_jobs(...)` | `Dict[str, Any]` | List/search document jobs |
+| `delete(job_id)` | `Dict[str, Any]` | Delete a document job |
+| `get_batch(batch_id)` | `Dict[str, Any]` | Get batch by ID |
 | `wait_for_completion(job_id, ...)` | `Dict[str, Any]` | Poll until job completes or fails |
+| `wait_for_batch_completion(batch_id, ...)` | `Dict[str, Any]` | Poll until batch reaches terminal state |
+| `download(download_url)` | `bytes` | Download generated document from signed URL |
+| `retry(job_id)` | `Dict[str, Any]` | Retry a failed document job |
+| `cancel(job_id)` | `Dict[str, Any]` | Cancel a queued or processing job |
 
 ### Templates Resource
 
@@ -898,6 +1220,13 @@ async with AsyncRynko(api_key="your_api_key") as client:
 |--------|---------|-------------|
 | `get(webhook_id)` | `Dict[str, Any]` | Get webhook subscription by ID |
 | `list()` | `Dict[str, Any]` | List all webhook subscriptions |
+| `create(...)` | `Dict[str, Any]` | Create a webhook subscription |
+| `update(webhook_id, ...)` | `Dict[str, Any]` | Update a webhook subscription |
+| `delete(webhook_id)` | `Dict[str, Any]` | Delete a webhook subscription |
+| `rotate_secret(webhook_id)` | `Dict[str, Any]` | Rotate webhook signing secret |
+| `test(webhook_id)` | `Dict[str, Any]` | Send a test event |
+| `list_deliveries(webhook_id, ...)` | `Dict[str, Any]` | List deliveries for a webhook |
+| `retry_delivery(webhook_id, delivery_id)` | `Dict[str, Any]` | Retry a failed delivery |
 
 ### Flow Resource
 
@@ -911,11 +1240,47 @@ async with AsyncRynko(api_key="your_api_key") as client:
 | `list_runs_by_gate(gate_id, ...)` | `Dict[str, Any]` | List runs for a gate |
 | `list_active_runs(...)` | `Dict[str, Any]` | List active runs |
 | `wait_for_run(run_id, ...)` | `Dict[str, Any]` | Poll until run reaches terminal state |
+| `create_gate(...)` | `Dict[str, Any]` | Create a gate |
+| `update_gate(gate_id, ...)` | `Dict[str, Any]` | Update a gate |
+| `delete_gate(gate_id)` | `Dict[str, Any]` | Delete a gate |
+| `update_gate_schema(gate_id, ...)` | `Dict[str, Any]` | Update gate schema |
+| `publish_gate(gate_id)` | `Dict[str, Any]` | Publish a gate |
+| `rollback_gate(gate_id, ...)` | `Dict[str, Any]` | Rollback gate to previous version |
+| `export_gate(gate_id)` | `Dict[str, Any]` | Export gate configuration |
+| `import_gate(...)` | `Dict[str, Any]` | Import gate from configuration |
+| `test_gate(gate_id, ...)` | `Dict[str, Any]` | Dry-run test (no run created) |
+| `validate_gate(gate_id, ...)` | `Dict[str, Any]` | Validate payload (creates run) |
+| `verify_validation(...)` | `Dict[str, Any]` | Verify a validation result |
 | `list_approvals(...)` | `Dict[str, Any]` | List approvals |
 | `approve(approval_id, ...)` | `Dict[str, Any]` | Approve a pending approval |
 | `reject(approval_id, ...)` | `Dict[str, Any]` | Reject a pending approval |
 | `list_deliveries(run_id, ...)` | `Dict[str, Any]` | List deliveries for a run |
 | `retry_delivery(delivery_id)` | `Dict[str, Any]` | Retry a failed delivery |
+| `get_run_payload(run_id, ...)` | `Dict[str, Any]` | Get run payload |
+| `get_run_chain(correlation_id)` | `Dict[str, Any]` | Get chain of related runs |
+| `get_transaction(transaction_id)` | `Dict[str, Any]` | Get transaction by ID |
+
+### Extract Resource
+
+| Method | Returns | Description |
+|--------|---------|-------------|
+| `create_job(...)` | `Dict[str, Any]` | Create an extraction job |
+| `get_job(job_id)` | `Dict[str, Any]` | Get extraction job by ID |
+| `list_jobs(...)` | `Dict[str, Any]` | List extraction jobs |
+| `cancel_job(job_id)` | `Dict[str, Any]` | Cancel an extraction job |
+| `get_usage()` | `Dict[str, Any]` | Get extraction usage statistics |
+| `discover(...)` | `Dict[str, Any]` | Discover schema from files |
+| `create_config(...)` | `Dict[str, Any]` | Create an extraction config |
+| `get_config(config_id)` | `Dict[str, Any]` | Get extraction config by ID |
+| `list_configs(...)` | `Dict[str, Any]` | List extraction configs |
+| `update_config(config_id, ...)` | `Dict[str, Any]` | Update an extraction config |
+| `delete_config(config_id)` | `Dict[str, Any]` | Delete an extraction config |
+| `publish_config(config_id)` | `Dict[str, Any]` | Publish an extraction config |
+| `get_config_versions(config_id)` | `Dict[str, Any]` | Get config version history |
+| `restore_config_version(config_id, version_id)` | `Dict[str, Any]` | Restore config to a version |
+| `run_config(config_id, ...)` | `Dict[str, Any]` | Run extraction config on files |
+| `extract_with_gate(gate_id, ...)` | `Dict[str, Any]` | Extract with Flow gate validation |
+| `submit_file_run(gate_id, ...)` | `Dict[str, Any]` | Submit files to Flow gate pipeline |
 
 ### Utilities
 

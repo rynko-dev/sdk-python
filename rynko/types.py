@@ -261,3 +261,78 @@ class ListApprovalsOptions(TypedDict, total=False):
     status: Optional[Literal["pending", "approved", "rejected"]]
     limit: Optional[int]
     page: Optional[int]
+
+
+# ============================================
+# Extract Types
+# ============================================
+
+ExtractJobStatus = Literal[
+    "pending",
+    "processing",
+    "completed",
+    "failed",
+    "cancelled",
+]
+
+
+class ExtractJob(TypedDict, total=False):
+    """An extraction job."""
+    id: str
+    status: ExtractJobStatus
+    result: Optional[Dict[str, Any]]
+    error: Optional[str]
+    metadata: Optional[Dict[str, Any]]
+    created_at: str
+    updated_at: str
+    completed_at: Optional[str]
+
+
+class ExtractConfig(TypedDict, total=False):
+    """An extraction config."""
+    id: str
+    name: str
+    description: Optional[str]
+    schema: Dict[str, Any]
+    instructions: Optional[str]
+    status: Literal["draft", "published", "archived"]
+    created_at: str
+    updated_at: str
+
+
+class ExtractUsage(TypedDict, total=False):
+    """Extraction usage statistics."""
+    used: int
+    remaining: int
+    limit: int
+
+
+# ============================================
+# Webhook CRUD Types
+# ============================================
+
+class CreateWebhookSubscriptionOptions(TypedDict, total=False):
+    """Options for creating a webhook subscription."""
+    url: str
+    events: List[WebhookEventType]
+    description: Optional[str]
+    is_active: bool
+    max_retries: Optional[int]
+    timeout_ms: Optional[int]
+    workspace_id: Optional[str]
+
+
+class UpdateWebhookSubscriptionOptions(TypedDict, total=False):
+    """Options for updating a webhook subscription."""
+    description: Optional[str]
+    events: Optional[List[WebhookEventType]]
+    is_active: Optional[bool]
+    max_retries: Optional[int]
+    timeout_ms: Optional[int]
+
+
+# ============================================
+# Batch Types
+# ============================================
+
+BatchStatus = Literal["queued", "processing", "completed", "partial", "failed"]

@@ -134,12 +134,15 @@ class HttpClient:
         max_attempts = self._retry_config.max_attempts if self._retry_config else 1
         last_error: Optional[RynkoError] = None
 
+        # Allow callers to override headers (e.g., for multipart requests)
+        request_headers = kwargs.pop("headers", self._headers)
+
         for attempt in range(max_attempts):
             try:
                 response = self._client.request(
                     method,
                     url,
-                    headers=self._headers,
+                    headers=request_headers,
                     **kwargs,
                 )
 
@@ -234,6 +237,39 @@ class HttpClient:
             f"{self.base_url}{path}",
         )
 
+    def post_multipart(
+        self,
+        path: str,
+        *,
+        files: Any,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Make multipart POST request with file uploads."""
+        # For multipart requests, remove Content-Type so httpx sets it with boundary
+        headers = {k: v for k, v in self._headers.items() if k != "Content-Type"}
+        return self._request_with_retry(
+            "POST",
+            f"{self.base_url}{path}",
+            files=files,
+            data=data,
+            headers=headers,
+        )
+
+    def get_raw(self, url: str) -> bytes:
+        """Make a GET request and return raw bytes (for downloading files)."""
+        response = self._client.request(
+            "GET",
+            url,
+            headers=self._headers,
+        )
+        if response.status_code >= 400:
+            raise RynkoError(
+                f"HTTP {response.status_code}",
+                "DownloadError",
+                response.status_code,
+            )
+        return response.content
+
     def close(self) -> None:
         """Close the HTTP client."""
         self._client.close()
@@ -292,12 +328,15 @@ class AsyncHttpClient:
         max_attempts = self._retry_config.max_attempts if self._retry_config else 1
         last_error: Optional[RynkoError] = None
 
+        # Allow callers to override headers (e.g., for multipart requests)
+        request_headers = kwargs.pop("headers", self._headers)
+
         for attempt in range(max_attempts):
             try:
                 response = await self._client.request(
                     method,
                     url,
-                    headers=self._headers,
+                    headers=request_headers,
                     **kwargs,
                 )
 
@@ -390,6 +429,39 @@ class AsyncHttpClient:
             "DELETE",
             f"{self.base_url}{path}",
         )
+
+    async def post_multipart(
+        self,
+        path: str,
+        *,
+        files: Any,
+        data: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        """Make multipart POST request with file uploads (async)."""
+        # For multipart requests, remove Content-Type so httpx sets it with boundary
+        headers = {k: v for k, v in self._headers.items() if k != "Content-Type"}
+        return await self._request_with_retry(
+            "POST",
+            f"{self.base_url}{path}",
+            files=files,
+            data=data,
+            headers=headers,
+        )
+
+    async def get_raw(self, url: str) -> bytes:
+        """Make a GET request and return raw bytes (async, for downloading files)."""
+        response = await self._client.request(
+            "GET",
+            url,
+            headers=self._headers,
+        )
+        if response.status_code >= 400:
+            raise RynkoError(
+                f"HTTP {response.status_code}",
+                "DownloadError",
+                response.status_code,
+            )
+        return response.content
 
     async def close(self) -> None:
         """Close the HTTP client."""

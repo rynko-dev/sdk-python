@@ -282,6 +282,132 @@ class DocumentsResource:
             },
         }
 
+    def delete(self, job_id: str) -> Dict[str, Any]:
+        """
+        Delete a document job.
+
+        Args:
+            job_id: Job ID to delete
+
+        Returns:
+            Deletion confirmation
+
+        Example:
+            >>> client.documents.delete("job_abc123")
+        """
+        response = self._http.delete(f"/api/v1/documents/jobs/{job_id}")
+        return response.get("data", response)
+
+    def get_batch(self, batch_id: str) -> Dict[str, Any]:
+        """
+        Get a batch by ID.
+
+        Args:
+            batch_id: Batch ID to retrieve
+
+        Returns:
+            Batch info with status, jobs, and progress
+
+        Example:
+            >>> batch = client.documents.get_batch("batch_abc123")
+            >>> print(f"Status: {batch['status']}")
+            >>> print(f"Completed: {batch['completedJobs']}/{batch['totalJobs']}")
+        """
+        response = self._http.get(f"/api/v1/documents/batches/{batch_id}")
+        return response.get("data", response)
+
+    def wait_for_batch_completion(
+        self,
+        batch_id: str,
+        *,
+        poll_interval: float = 2.0,
+        timeout: float = 300.0,
+    ) -> Dict[str, Any]:
+        """
+        Wait for a batch to reach a terminal state.
+
+        Args:
+            batch_id: Batch ID to wait for
+            poll_interval: Time between polls in seconds (default: 2.0)
+            timeout: Maximum wait time in seconds (default: 300.0)
+
+        Returns:
+            Completed batch info
+
+        Raises:
+            TimeoutError: If batch doesn't complete within timeout
+
+        Example:
+            >>> batch = client.documents.generate_batch(...)
+            >>> completed = client.documents.wait_for_batch_completion(batch["batchId"])
+            >>> print(f"Status: {completed['status']}")
+        """
+        start_time = time.time()
+
+        while True:
+            batch = self.get_batch(batch_id)
+
+            if batch.get("status") in ("completed", "partial", "failed"):
+                return batch
+
+            if time.time() - start_time > timeout:
+                raise TimeoutError(
+                    f"Timeout waiting for batch {batch_id} to complete"
+                )
+
+            time.sleep(poll_interval)
+
+    def download(self, download_url: str) -> bytes:
+        """
+        Download a generated document from a signed URL.
+
+        Args:
+            download_url: The signed download URL from a completed job
+
+        Returns:
+            Raw file bytes
+
+        Example:
+            >>> job = client.documents.wait_for_completion(job_id)
+            >>> content = client.documents.download(job["downloadUrl"])
+            >>> with open("invoice.pdf", "wb") as f:
+            ...     f.write(content)
+        """
+        return self._http.get_raw(download_url)
+
+    def retry(self, job_id: str) -> Dict[str, Any]:
+        """
+        Retry a failed document job.
+
+        Args:
+            job_id: Job ID to retry
+
+        Returns:
+            New job info
+
+        Example:
+            >>> result = client.documents.retry("job_abc123")
+            >>> print(f"New job ID: {result['jobId']}")
+        """
+        response = self._http.post(f"/api/v1/documents/jobs/{job_id}/retry")
+        return response.get("data", response)
+
+    def cancel(self, job_id: str) -> Dict[str, Any]:
+        """
+        Cancel a queued or processing document job.
+
+        Args:
+            job_id: Job ID to cancel
+
+        Returns:
+            Updated job info
+
+        Example:
+            >>> client.documents.cancel("job_abc123")
+        """
+        response = self._http.post(f"/api/v1/documents/jobs/{job_id}/cancel")
+        return response.get("data", response)
+
     def wait_for_completion(
         self,
         job_id: str,
@@ -487,6 +613,66 @@ class AsyncDocumentsResource:
                 "totalPages": (total + limit - 1) // limit if limit > 0 else 1,
             },
         }
+
+    async def delete(self, job_id: str) -> Dict[str, Any]:
+        """Delete a document job (async)."""
+        response = await self._http.delete(f"/api/v1/documents/jobs/{job_id}")
+        return response.get("data", response)
+
+    async def get_batch(self, batch_id: str) -> Dict[str, Any]:
+        """Get a batch by ID (async)."""
+        response = await self._http.get(f"/api/v1/documents/batches/{batch_id}")
+        return response.get("data", response)
+
+    async def wait_for_batch_completion(
+        self,
+        batch_id: str,
+        *,
+        poll_interval: float = 2.0,
+        timeout: float = 300.0,
+    ) -> Dict[str, Any]:
+        """
+        Wait for a batch to reach a terminal state (async).
+
+        Args:
+            batch_id: Batch ID to wait for
+            poll_interval: Time between polls in seconds (default: 2.0)
+            timeout: Maximum wait time in seconds (default: 300.0)
+
+        Returns:
+            Completed batch info
+
+        Raises:
+            TimeoutError: If batch doesn't complete within timeout
+        """
+        start_time = time.time()
+
+        while True:
+            batch = await self.get_batch(batch_id)
+
+            if batch.get("status") in ("completed", "partial", "failed"):
+                return batch
+
+            if time.time() - start_time > timeout:
+                raise TimeoutError(
+                    f"Timeout waiting for batch {batch_id} to complete"
+                )
+
+            await asyncio.sleep(poll_interval)
+
+    async def download(self, download_url: str) -> bytes:
+        """Download a generated document from a signed URL (async)."""
+        return await self._http.get_raw(download_url)
+
+    async def retry(self, job_id: str) -> Dict[str, Any]:
+        """Retry a failed document job (async)."""
+        response = await self._http.post(f"/api/v1/documents/jobs/{job_id}/retry")
+        return response.get("data", response)
+
+    async def cancel(self, job_id: str) -> Dict[str, Any]:
+        """Cancel a queued or processing document job (async)."""
+        response = await self._http.post(f"/api/v1/documents/jobs/{job_id}/cancel")
+        return response.get("data", response)
 
     async def wait_for_completion(
         self,

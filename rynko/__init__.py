@@ -47,9 +47,19 @@ from .types import (
     ListGatesOptions,
     ListRunsOptions,
     ListApprovalsOptions,
+    # Extract types
+    ExtractJobStatus,
+    ExtractJob,
+    ExtractConfig,
+    ExtractUsage,
+    # Webhook CRUD types
+    CreateWebhookSubscriptionOptions,
+    UpdateWebhookSubscriptionOptions,
+    # Batch types
+    BatchStatus,
 )
 
-__version__ = "1.3.5"
+__version__ = "1.4.0"
 __all__ = [
     # Client classes
     "Rynko",
@@ -85,4 +95,14 @@ __all__ = [
     "ListGatesOptions",
     "ListRunsOptions",
     "ListApprovalsOptions",
+    # Extract types
+    "ExtractJobStatus",
+    "ExtractJob",
+    "ExtractConfig",
+    "ExtractUsage",
+    # Webhook CRUD types
+    "CreateWebhookSubscriptionOptions",
+    "UpdateWebhookSubscriptionOptions",
+    # Batch types
+    "BatchStatus",
 ]
