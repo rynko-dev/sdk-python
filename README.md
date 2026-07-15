@@ -982,6 +982,35 @@ with open("document.pdf", "rb") as f:
 print(f"Run ID: {run['id']}")
 ```
 
+## Rynko Reporting
+
+Integrate an application (e.g. a WMS) with Rynko Reporting via an API key that has
+an explicit **report allow-list**. All operations are scoped to that list.
+
+```python
+# Mint a one-click run link for an operator (no Rynko login)
+link = client.reporting.mint_run_link(
+    report_ref="daily-progress",         # omit for a landing link over the allow-list
+    locked_params={"warehouse": "W1"},   # operator can't change these
+    actor={"externalUserId": "jdoe", "name": "Jane Doe"},  # audit attribution
+    ttl_minutes=15,
+)
+# Redirect the operator's browser to link["url"]
+
+# Or run a report directly, server-to-server
+run = client.reporting.run_report(
+    "daily-progress",
+    params={"date": "2026-07-15"},
+    actor={"externalUserId": "jdoe"},
+)
+print(run["runId"], run["status"])
+
+# Which reports may this key run?
+reports = client.reporting.list_reports()
+```
+
+The same methods are available on `AsyncRynko` via `await client.reporting....`.
+
 ## Async Client
 
 For async applications (FastAPI, aiohttp, etc.), use `AsyncRynko`:

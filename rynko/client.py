@@ -8,6 +8,7 @@ from .http import HttpClient, AsyncHttpClient, RetryConfig
 from .resources.documents import DocumentsResource, AsyncDocumentsResource
 from .resources.extract import ExtractResource, AsyncExtractResource
 from .resources.flow import FlowResource, AsyncFlowResource
+from .resources.reporting import ReportingResource, AsyncReportingResource
 from .resources.templates import TemplatesResource, AsyncTemplatesResource
 from .resources.webhooks import WebhooksResource, AsyncWebhooksResource
 
@@ -78,6 +79,7 @@ class Rynko:
         self.documents = DocumentsResource(self._http)
         self.extract = ExtractResource(self._http)
         self.flow = FlowResource(self._http)
+        self.reporting = ReportingResource(self._http)
         self.templates = TemplatesResource(self._http)
         self.webhooks = WebhooksResource(self._http)
 
@@ -169,6 +171,7 @@ class AsyncRynko:
         self.documents = AsyncDocumentsResource(self._http)
         self.extract = AsyncExtractResource(self._http)
         self.flow = AsyncFlowResource(self._http)
+        self.reporting = AsyncReportingResource(self._http)
         self.templates = AsyncTemplatesResource(self._http)
         self.webhooks = AsyncWebhooksResource(self._http)
 
